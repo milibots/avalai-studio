@@ -3,6 +3,7 @@ import { store } from '../store.js';
 import { Database } from '../db.js';
 import { AvalAIApi } from '../api.js';
 import { generateChatCode, generateResponsesCode } from '../utils/code-gen.js';
+import { Icons } from '../utils/icons.js';
 
 // Pre-seeded flagship chat models with rich capabilities
 const DEFAULT_CHAT_MODELS = [
@@ -189,22 +190,22 @@ export const ChatView = {
     const caps = this.getModelCapabilities(this.selectedModel);
     bar.innerHTML = `
       <span class="cap-badge ${caps.supports_vision ? 'active' : 'dimmed'}" title="${caps.supports_vision ? 'Vision Multimodal Input Supported' : 'No Vision'}">
-        👁️ Vision
+        ${Icons.eye('svg-icon', 12)} Vision
       </span>
       <span class="cap-badge ${caps.supports_audio_input ? 'audio-active' : 'dimmed'}" title="${caps.supports_audio_input ? 'Native Spoken Voice Input Supported' : 'Voice handled via Whisper transcription'}">
-        🎙️ Audio In
+        ${Icons.audio('svg-icon', 12)} Audio In
       </span>
       <span class="cap-badge ${caps.supports_audio_output ? 'audio-active' : 'dimmed'}" title="${caps.supports_audio_output ? 'Direct Spoken Voice Output Supported' : 'Text Output'}">
-        🔊 Audio Out
+        ${Icons.volume2('svg-icon', 12)} Audio Out
       </span>
       <span class="cap-badge ${caps.supports_pdf_input ? 'active' : 'dimmed'}" title="${caps.supports_pdf_input ? 'PDF Document Processing Supported' : 'Plain Text'}">
-        📄 PDF/Doc
+        ${Icons.fileText('svg-icon', 12)} PDF/Doc
       </span>
       <span class="cap-badge ${caps.supports_reasoning ? 'reasoning-active' : 'dimmed'}" title="${caps.supports_reasoning ? 'Thinking/Reasoning Stream' : 'Direct Response'}">
-        🧠 Reasoning
+        ${Icons.cpu('svg-icon', 12)} Reasoning
       </span>
       <span class="cap-badge ${caps.supports_web_search ? 'active' : 'dimmed'}" title="${caps.supports_web_search ? 'Integrated Real-time Web Search' : 'No Web Search'}">
-        🌐 Web Search
+        ${Icons.search('svg-icon', 12)} Web Search
       </span>
     `;
   },
@@ -218,7 +219,7 @@ export const ChatView = {
         <!-- Sessions Sidebar (SQLite Backed) -->
         <div class="chat-sessions-sidebar">
           <button class="btn btn-primary btn-sm" id="btn-new-chat-session" style="width: 100%;">
-            + New Chat
+            ${Icons.plus('svg-icon', 13)} New Chat
           </button>
           <div class="session-list">
             ${this.sessions.map(s => `
@@ -253,32 +254,32 @@ export const ChatView = {
               <!-- Dynamic Model Capabilities Bar -->
               <div class="chat-capabilities-bar" id="chat-capabilities-bar">
                 <span class="cap-badge ${caps.supports_vision ? 'active' : 'dimmed'}" title="${caps.supports_vision ? 'Vision Multimodal Input Supported' : 'No Vision'}">
-                  👁️ Vision
+                  ${Icons.eye('svg-icon', 12)} Vision
                 </span>
                 <span class="cap-badge ${caps.supports_audio_input ? 'audio-active' : 'dimmed'}" title="${caps.supports_audio_input ? 'Native Spoken Voice Input Supported' : 'Voice handled via Whisper transcription'}">
-                  🎙️ Audio In
+                  ${Icons.audio('svg-icon', 12)} Audio In
                 </span>
                 <span class="cap-badge ${caps.supports_audio_output ? 'audio-active' : 'dimmed'}" title="${caps.supports_audio_output ? 'Direct Spoken Voice Output Supported' : 'Text Output'}">
-                  🔊 Audio Out
+                  ${Icons.volume2('svg-icon', 12)} Audio Out
                 </span>
                 <span class="cap-badge ${caps.supports_pdf_input ? 'active' : 'dimmed'}" title="${caps.supports_pdf_input ? 'PDF Document Processing Supported' : 'Plain Text'}">
-                  📄 PDF/Doc
+                  ${Icons.fileText('svg-icon', 12)} PDF/Doc
                 </span>
                 <span class="cap-badge ${caps.supports_reasoning ? 'reasoning-active' : 'dimmed'}" title="${caps.supports_reasoning ? 'Thinking/Reasoning Stream' : 'Direct Response'}">
-                  🧠 Reasoning
+                  ${Icons.cpu('svg-icon', 12)} Reasoning
                 </span>
                 <span class="cap-badge ${caps.supports_web_search ? 'active' : 'dimmed'}" title="${caps.supports_web_search ? 'Integrated Real-time Web Search' : 'No Web Search'}">
-                  🌐 Web Search
+                  ${Icons.search('svg-icon', 12)} Web Search
                 </span>
               </div>
             </div>
 
             <div style="display: flex; gap: 8px;">
               <button class="btn btn-secondary btn-sm" id="btn-export-code" title="Export Code">
-                📄 View Code
+                ${Icons.code('svg-icon', 13)} View Code
               </button>
               <button class="btn btn-secondary btn-sm" id="btn-clear-chat" title="Clear Conversation">
-                🗑️ Clear
+                ${Icons.trash('svg-icon', 13)} Clear
               </button>
             </div>
           </div>
@@ -287,17 +288,17 @@ export const ChatView = {
           <div class="chat-messages" id="chat-messages-box">
             ${this.messages.length === 0 ? `
               <div class="chat-welcome">
-                <div class="chat-welcome-icon">💬</div>
-                <h3 style="font-size: 18px; font-weight: 700;">AvalAI Playground</h3>
-                <p style="max-width: 520px; font-size: 13px; line-height: 1.6;">
-                  Test any AvalAI model with real-time SSE streaming, voice recording & Whisper transcription, native spoken audio responses, multimodal vision attachments, and thinking tokens.
+                <div class="chat-welcome-icon">${Icons.chat('svg-icon', 26)}</div>
+                <h3 style="font-size: 17px; font-weight: 700;">AvalAI Playground</h3>
+                <p style="max-width: 480px; font-size: 13px; line-height: 1.6;">
+                  Test any AvalAI model with real-time SSE streaming, voice recording & Whisper transcription, native spoken audio responses, and multimodal file attachments.
                 </p>
               </div>
             ` : this.renderMessages()}
 
             ${this.isWaitingFirstToken ? `
               <div class="message-row assistant" id="skeleton-assistant-loading">
-                <div class="message-avatar">⚡</div>
+                <div class="message-avatar">${Icons.bot('svg-icon', 16)}</div>
                 <div class="message-content-wrapper" style="width: 280px;">
                   <div class="message-bubble" style="display: flex; flex-direction: column; gap: 8px;">
                     <div class="skeleton skeleton-text" style="width: 85%;"></div>
@@ -318,10 +319,10 @@ export const ChatView = {
                       <img src="${m.data}" class="attachment-chip-thumb" />
                       <span>${m.name || 'Image'}</span>
                     ` : m.type === 'audio' ? `
-                      <span class="attachment-chip-audio">🎙️ ${m.name || 'Voice Note'}</span>
+                      <span class="attachment-chip-audio">${Icons.audio('svg-icon', 12)} ${m.name || 'Voice Note'}</span>
                       <audio src="${m.data}" controls style="height: 24px; max-width: 140px;"></audio>
                     ` : `
-                      <span>📄 ${m.name || 'Document'}</span>
+                      <span>${Icons.fileText('svg-icon', 12)} ${m.name || 'Document'}</span>
                     `}
                     <span class="attachment-chip-remove" data-idx="${idx}" title="Remove attachment">&times;</span>
                   </div>
@@ -339,20 +340,20 @@ export const ChatView = {
 
                 <!-- Attachment triggers -->
                 <button class="btn btn-secondary btn-sm btn-icon-only" id="btn-attach-image" title="Attach Vision Image">
-                  🖼️
+                  ${Icons.images('svg-icon', 15)}
                 </button>
                 <button class="btn btn-secondary btn-sm btn-icon-only" id="btn-attach-file" title="Attach Document (PDF, TXT, Audio)">
-                  📎
+                  ${Icons.paperclip('svg-icon', 15)}
                 </button>
 
                 <!-- Voice Recording Button -->
                 <button class="btn btn-secondary btn-sm" id="btn-chat-speak" title="Speak to Model (Voice Recording & Whisper Transcription)">
-                  🎙️ Speak
+                  ${Icons.audio('svg-icon', 14)} Speak
                 </button>
 
                 <!-- Send Button -->
                 <button class="btn btn-primary btn-sm" id="btn-chat-send" style="padding: 8px 16px;">
-                  Send 🚀
+                  Send ${Icons.send('svg-icon', 12)}
                 </button>
               </div>
             </div>
@@ -422,7 +423,9 @@ export const ChatView = {
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary modal-close">Close</button>
-            <button class="btn btn-primary" id="btn-copy-snippet">📋 Copy Code</button>
+            <button class="btn btn-primary" id="btn-copy-snippet">
+              ${Icons.copy('svg-icon', 14)} Copy Code
+            </button>
           </div>
         </div>
       </div>
@@ -440,7 +443,7 @@ export const ChatView = {
       return `
         <div class="message-row ${isUser ? 'user' : 'assistant'}">
           <div class="message-avatar">
-            ${isUser ? '👤' : '⚡'}
+            ${isUser ? Icons.user('svg-icon', 15) : Icons.bot('svg-icon', 15)}
           </div>
           <div class="message-content-wrapper">
             <!-- Render User Media Attachments -->
@@ -454,8 +457,9 @@ export const ChatView = {
                   } else if (item.type === 'audio') {
                     return `
                       <div class="message-audio-player">
-                        <div style="font-size: 11px; font-weight: 600; color: var(--accent-cyan); margin-bottom: 2px;">
-                          🎙️ ${item.name || 'User Voice Note'}
+                        <div style="font-size: 11px; font-weight: 600; color: var(--accent-cyan); margin-bottom: 2px; display: flex; align-items: center; gap: 4px;">
+                          ${Icons.audio('svg-icon', 12)}
+                          <span>${item.name || 'User Voice Note'}</span>
                         </div>
                         <audio controls src="${item.data}"></audio>
                       </div>
@@ -463,7 +467,8 @@ export const ChatView = {
                   } else if (item.type === 'file') {
                     return `
                       <div class="attachment-chip">
-                        <span>📄 ${item.name || 'Document'}</span>
+                        ${Icons.fileText('svg-icon', 12)}
+                        <span>${item.name || 'Document'}</span>
                       </div>
                     `;
                   }
@@ -480,7 +485,7 @@ export const ChatView = {
                     <span class="thinking-pulse"></span>
                     <span>Reasoning Process</span>
                   </div>
-                  <span>▾</span>
+                  <span>${Icons.chevronDown('svg-icon', 12)}</span>
                 </div>
                 <div class="thinking-content">${this.escapeHtml(m.thinking)}</div>
               </div>
@@ -489,8 +494,9 @@ export const ChatView = {
             <!-- Spoken Audio Response from Assistant -->
             ${m.audio ? `
               <div class="message-audio-player">
-                <div style="font-size: 11px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
-                  <span>🔊 Spoken Voice Response (${m.audio.voice || 'alloy'})</span>
+                <div style="font-size: 11px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                  ${Icons.volume2('svg-icon', 13)}
+                  <span>Spoken Voice Response (${m.audio.voice || 'alloy'})</span>
                 </div>
                 <audio controls autoplay src="${m.audio.data?.startsWith('data:') ? m.audio.data : 'data:audio/wav;base64,' + m.audio.data}"></audio>
               </div>
@@ -502,11 +508,11 @@ export const ChatView = {
 
             ${m.meta ? `
               <div class="message-meta">
-                <span class="meta-item">⏱️ ${m.meta.latencyMs}ms</span>
-                ${m.meta.serverMs ? `<span class="meta-item">⚡ Server: ${m.meta.serverMs}ms</span>` : ''}
+                <span class="meta-item">${Icons.audit('svg-icon', 11)} ${m.meta.latencyMs}ms</span>
+                ${m.meta.serverMs ? `<span class="meta-item">${Icons.sparkles('svg-icon', 11)} Server: ${m.meta.serverMs}ms</span>` : ''}
                 ${m.meta.requestId ? `
                   <span class="meta-item meta-id-copy" data-id="${m.meta.requestId}" title="Click to copy Request ID">
-                    🆔 ${m.meta.requestId.slice(0, 8)}...
+                    ${Icons.key('svg-icon', 11)} ${m.meta.requestId.slice(0, 8)}...
                   </span>
                 ` : ''}
                 ${m.meta.model ? `<span class="badge badge-muted">${m.meta.model}</span>` : ''}
@@ -752,7 +758,7 @@ export const ChatView = {
       const speakBtn = this.container.querySelector('#btn-chat-speak');
       if (speakBtn) {
         speakBtn.classList.add('btn-recording');
-        speakBtn.innerHTML = `⏹️ 00:00`;
+        speakBtn.innerHTML = `${Icons.stop('svg-icon', 12)} 00:00`;
       }
 
       this.recordingTimer = setInterval(() => {
@@ -760,11 +766,11 @@ export const ChatView = {
         const mins = String(Math.floor(this.recordingDurationSec / 60)).padStart(2, '0');
         const secs = String(this.recordingDurationSec % 60).padStart(2, '0');
         if (speakBtn) {
-          speakBtn.innerHTML = `⏹️ ${mins}:${secs}`;
+          speakBtn.innerHTML = `${Icons.stop('svg-icon', 12)} ${mins}:${secs}`;
         }
       }, 1000);
 
-      this.showToast('🎙️ Recording voice... Speak clearly. Click again when done.', 'info');
+      this.showToast('Recording voice... Speak clearly. Click again when done.', 'info');
     } catch (err) {
       console.error('Microphone recording error:', err);
       this.showToast('Microphone access unavailable: ' + err.message, 'error');
@@ -781,7 +787,7 @@ export const ChatView = {
     const speakBtn = this.container.querySelector('#btn-chat-speak');
     if (speakBtn) {
       speakBtn.classList.remove('btn-recording');
-      speakBtn.innerHTML = `🎙️ Speak`;
+      speakBtn.innerHTML = `${Icons.audio('svg-icon', 14)} Speak`;
     }
   },
 
@@ -806,7 +812,7 @@ export const ChatView = {
       // Automatically transcribe with Whisper-1 to also fill the prompt text
       const activeKey = store.getActiveKey();
       if (activeKey) {
-        this.showToast('⚡ Transcribing voice with Whisper-1...', 'info');
+        this.showToast('Transcribing voice with Whisper-1...', 'info');
         try {
           const transRes = await AvalAIApi.transcribeAudio({
             apiKey: activeKey.key,
@@ -822,7 +828,7 @@ export const ChatView = {
               const current = textarea.value.trim();
               textarea.value = current ? `${current} ${transRes.data.text}` : transRes.data.text;
             }
-            this.showToast(`✅ Transcribed: "${transRes.data.text.slice(0, 45)}..."`, 'success');
+            this.showToast(`Transcribed: "${transRes.data.text.slice(0, 45)}..."`, 'success');
           }
         } catch (err) {
           console.warn('Whisper auto-transcription warning:', err);
@@ -1031,12 +1037,12 @@ export const ChatView = {
             model: this.selectedModel
           };
         } else {
-          assistantMsg.content = `⚠️ AvalAI API Error (${res.status}): ${res.data?.message || res.statusText || 'Unknown error'}`;
+          assistantMsg.content = `AvalAI API Error (${res.status}): ${res.data?.message || res.statusText || 'Unknown error'}`;
         }
         await Database.addChatMessage(assistantMsg);
       } catch (err) {
         this.isWaitingFirstToken = false;
-        assistantMsg.content = `⚠️ Network Error: ${err.message}`;
+        assistantMsg.content = `Network Error: ${err.message}`;
       }
       this.render();
       this.scrollToBottom();
@@ -1110,7 +1116,7 @@ export const ChatView = {
         onError: (err) => {
           this.isStreaming = false;
           this.isWaitingFirstToken = false;
-          assistantMsg.content += `\n⚠️ Stream Error: ${err.error || 'Connection failed'}`;
+          assistantMsg.content += `\nStream Error: ${err.error || 'Connection failed'}`;
           this.render();
           this.scrollToBottom();
         }

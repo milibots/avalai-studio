@@ -14,6 +14,8 @@ import { SearchView } from './views/search.js';
 import { EmbeddingsView } from './views/embeddings.js';
 import { TransactionsView } from './views/transactions.js';
 
+import { Icons } from './utils/icons.js';
+
 class App {
   constructor() {
     this.currentView = 'keys';
@@ -81,7 +83,10 @@ class App {
     const themeBtn = document.getElementById('header-btn-theme');
     const updateThemeIcon = () => {
       const theme = store.getTheme();
-      if (themeBtn) themeBtn.textContent = theme === 'dark' ? '🌙' : '☀️';
+      const themeIconSpan = document.getElementById('header-theme-icon') || themeBtn;
+      if (themeIconSpan) {
+        themeIconSpan.innerHTML = theme === 'dark' ? Icons.moon('svg-icon', 15) : Icons.sun('svg-icon', 15);
+      }
     };
     updateThemeIcon();
     themeBtn?.addEventListener('click', async () => {
@@ -198,8 +203,8 @@ class App {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
 
-    const icon = type === 'success' ? '✅' : type === 'error' ? '⚠️' : 'ℹ️';
-    toast.innerHTML = `<span>${icon}</span><span style="flex: 1;">${message}</span>`;
+    const icon = type === 'success' ? Icons.check('svg-icon', 15) : type === 'error' ? Icons.close('svg-icon', 15) : Icons.audit('svg-icon', 15);
+    toast.innerHTML = `<span style="display: flex; align-items: center;">${icon}</span><span style="flex: 1;">${message}</span>`;
 
     this.toastContainer.appendChild(toast);
 

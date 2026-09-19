@@ -2,6 +2,7 @@
 import { store } from '../store.js';
 import { AvalAIApi } from '../api.js';
 import { formatIRT, formatUSD, formatDate, maskKey } from '../utils/formatters.js';
+import { Icons } from '../utils/icons.js';
 
 export const AuditView = {
   init(container, showToast) {
@@ -25,7 +26,7 @@ export const AuditView = {
         </div>
         <div class="view-header-actions">
           <button class="btn btn-primary" id="btn-run-audit" ${!activeKey ? 'disabled' : ''}>
-            🔄 Run Full Diagnostic Test
+            ${Icons.refresh()} Run Full Diagnostic Test
           </button>
         </div>
       </div>
@@ -100,7 +101,7 @@ export const AuditView = {
           <div class="card">
             <div class="card-header">
               <div class="card-title">
-                <span>🎁</span>
+                ${Icons.transactions('svg-icon', 16)}
                 <span>Active Credit Packages & Model Grants</span>
               </div>
               <span class="badge badge-muted">${activeKey.packages?.length || 0} Packages</span>
@@ -147,7 +148,7 @@ export const AuditView = {
           <div class="card">
             <div class="card-header">
               <div class="card-title">
-                <span>📡</span>
+                ${Icons.audit('svg-icon', 16)}
                 <span>Live Response Headers & Rate Limits</span>
               </div>
               <span class="badge badge-cyan">RFC / AvalAI Standard</span>

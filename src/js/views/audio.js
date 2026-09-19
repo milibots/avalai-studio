@@ -2,6 +2,7 @@
 import { store } from '../store.js';
 import { Database } from '../db.js';
 import { AvalAIApi } from '../api.js';
+import { Icons } from '../utils/icons.js';
 
 export const AudioView = {
   async init(container, showToast) {
@@ -54,7 +55,7 @@ export const AudioView = {
         <div class="card">
           <div class="card-header">
             <div class="card-title">
-              <span>🎙️</span>
+              ${Icons.audio(18)}
               <span>Text-to-Speech Synthesis</span>
             </div>
             <span class="badge badge-primary">POST /v1/audio/speech</span>
@@ -97,7 +98,7 @@ export const AudioView = {
             </div>
 
             <button class="btn btn-primary btn-lg" id="btn-synthesize-speech" ${!activeKey || this.isSynthesizing ? 'disabled' : ''}>
-              ${this.isSynthesizing ? 'Synthesizing Audio Wave...' : '🔊 Synthesize & Play'}
+              ${this.isSynthesizing ? 'Synthesizing Audio Wave...' : `${Icons.volume2(16)} Synthesize & Play`}
             </button>
           </div>
 
@@ -112,7 +113,7 @@ export const AudioView = {
               <audio controls src="${this.currentAudioUrl}" autoplay style="width: 100%;"></audio>
               <div style="display: flex; justify-content: flex-end;">
                 <a href="${this.currentAudioUrl}" download="avalai_speech_${Date.now()}.mp3" class="btn btn-secondary btn-sm">
-                  ⬇️ Download MP3
+                  ${Icons.download(14)} Download MP3
                 </a>
               </div>
             </div>
@@ -125,7 +126,7 @@ export const AudioView = {
                 ${this.audioHistory.map(a => `
                   <div style="background: var(--bg-surface); padding: 8px 12px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
                     <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">${a.input_text || 'Clip'}</span>
-                    <button class="btn btn-secondary btn-sm btn-play-cached-audio" data-url="${a.url}">▶️ Play</button>
+                    <button class="btn btn-secondary btn-sm btn-play-cached-audio" data-url="${a.url}">${Icons.play(12)} Play</button>
                   </div>
                 `).join('')}
               </div>
@@ -137,7 +138,7 @@ export const AudioView = {
         <div class="card">
           <div class="card-header">
             <div class="card-title">
-              <span>🎧</span>
+              ${Icons.audio(18)}
               <span>Speech-to-Text Transcription</span>
             </div>
             <span class="badge badge-emerald">POST /v1/audio/transcriptions</span>
@@ -165,14 +166,14 @@ export const AudioView = {
               <div style="display: flex; gap: 8px; align-items: center;">
                 <input type="file" id="transcribe-file-input" accept="audio/*,.wav,.mp3,.m4a,.webm,.ogg" style="display: none;" />
                 <button class="btn btn-secondary btn-sm" id="btn-transcribe-choose-file">
-                  📁 Choose Audio File
+                  ${Icons.folder(14)} Choose Audio File
                 </button>
                 <button class="btn btn-secondary btn-sm" id="btn-transcribe-record">
-                  🎙️ Record Voice
+                  ${Icons.audio(14)} Record Voice
                 </button>
                 ${this.transcribeFile ? `
-                  <span style="font-size: 12px; color: var(--accent-cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">
-                    ✓ ${this.transcribeFile.name}
+                  <span style="font-size: 12px; color: var(--accent-cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; display: inline-flex; align-items: center; gap: 4px;">
+                    ${Icons.check(14)} ${this.transcribeFile.name}
                   </span>
                 ` : ''}
               </div>
@@ -185,7 +186,7 @@ export const AudioView = {
             ` : ''}
 
             <button class="btn btn-primary btn-lg" id="btn-run-transcription" ${!activeKey || !this.transcribeFile || this.isTranscribing ? 'disabled' : ''}>
-              ${this.isTranscribing ? 'Transcribing with Whisper...' : '⚡ Transcribe Audio to Text'}
+              ${this.isTranscribing ? 'Transcribing with Whisper...' : `${Icons.sparkles(16)} Transcribe Audio to Text`}
             </button>
 
             <!-- Transcription Output Box -->
@@ -194,7 +195,7 @@ export const AudioView = {
                 <label class="form-label" style="margin-bottom: 0;">Transcribed Text</label>
                 ${this.transcriptionResult ? `
                   <button class="btn btn-secondary btn-sm" id="btn-copy-transcription" style="padding: 2px 8px; font-size: 11px;">
-                    📋 Copy Text
+                    ${Icons.copy(12)} Copy Text
                   </button>
                 ` : ''}
               </div>
@@ -308,17 +309,17 @@ export const AudioView = {
         const recordBtn = this.container.querySelector('#btn-transcribe-record');
         if (recordBtn) {
           recordBtn.classList.add('btn-recording');
-          recordBtn.innerHTML = `⏹️ 00:00`;
+          recordBtn.innerHTML = `${Icons.stop(14)} 00:00`;
         }
 
         this.transcribeTimer = setInterval(() => {
           this.transcribeSec++;
           const mins = String(Math.floor(this.transcribeSec / 60)).padStart(2, '0');
           const secs = String(this.transcribeSec % 60).padStart(2, '0');
-          if (recordBtn) recordBtn.innerHTML = `⏹️ ${mins}:${secs}`;
+          if (recordBtn) recordBtn.innerHTML = `${Icons.stop(14)} ${mins}:${secs}`;
         }, 1000);
 
-        this.showToast('🎙️ Recording voice for transcription... Click again to stop.', 'info');
+        this.showToast('Recording voice for transcription... Click again to stop.', 'info');
       } catch (err) {
         this.showToast('Microphone error: ' + err.message, 'error');
       }
@@ -351,15 +352,15 @@ export const AudioView = {
       if (res.success && res.data) {
         this.transcriptionResult = res.data.text || JSON.stringify(res.data);
         this.render();
-        this.showToast('✅ Audio successfully transcribed!', 'success');
+        this.showToast('Audio successfully transcribed!', 'success');
       } else {
-        this.transcriptionResult = `⚠️ Error (${res.status}): ${res.data?.message || res.statusText || 'Transcription failed'}`;
+        this.transcriptionResult = `Error (${res.status}): ${res.data?.message || res.statusText || 'Transcription failed'}`;
         this.render();
         this.showToast('Transcription failed: ' + (res.data?.message || res.statusText), 'error');
       }
     } catch (err) {
       this.isTranscribing = false;
-      this.transcriptionResult = `⚠️ Network Error: ${err.message}`;
+      this.transcriptionResult = `Network Error: ${err.message}`;
       this.render();
       this.showToast('Error: ' + err.message, 'error');
     }

@@ -1,6 +1,7 @@
 // Transactions History & Request Cost Lookup View
 import { store } from '../store.js';
 import { AvalAIApi } from '../api.js';
+import { Icons } from '../utils/icons.js';
 import { formatIRT, formatUSD, formatTokens, formatDate } from '../utils/formatters.js';
 
 export const TransactionsView = {
@@ -27,16 +28,16 @@ export const TransactionsView = {
         </div>
         <div class="view-header-actions">
           <button class="btn btn-secondary btn-sm" id="btn-refresh-tx">
-            🔄 Refresh History
+            ${Icons.refresh(14)} Refresh History
           </button>
         </div>
       </div>
 
-      <!-- Request ID Lookup Bar -->
-      <div class="card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%); border-color: var(--border-accent);">
+      <!-- Request ID Lookup Bar (Strictly flat macOS styling, zero gradients) -->
+      <div class="card" style="border: 1px solid var(--border-subtle); background: var(--bg-surface);">
         <div class="card-header">
           <div class="card-title">
-            <span>🔍</span>
+            ${Icons.search(18)}
             <span>Lookup Exact Request Cost by avalai-request-id</span>
           </div>
           <span class="badge badge-cyan">POST /user/v1/transactions/lookup</span>
@@ -44,7 +45,7 @@ export const TransactionsView = {
         <div style="display: flex; gap: 12px; align-items: center;">
           <input type="text" class="form-input" id="input-lookup-id" placeholder="Paste avalai-request-id UUID (e.g. 01a009d5-ec91-74c2-8ffa-9eba731dfc9e)..." style="flex: 1; font-family: var(--font-mono); font-size: 13px;" />
           <button class="btn btn-primary" id="btn-run-lookup" ${!activeKey ? 'disabled' : ''}>
-            Lookup Cost 💸
+            ${Icons.search(14)} Lookup Cost
           </button>
         </div>
 
@@ -106,7 +107,7 @@ export const TransactionsView = {
       <div class="card">
         <div class="card-header">
           <div class="card-title">
-            <span>📜</span>
+            ${Icons.fileText(18)}
             <span>Recent API Requests Log</span>
           </div>
           <span class="badge badge-muted">${this.transactions.length} records</span>

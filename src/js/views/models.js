@@ -2,6 +2,7 @@
 import { store } from '../store.js';
 import { AvalAIApi } from '../api.js';
 import { formatTokens } from '../utils/formatters.js';
+import { Icons } from '../utils/icons.js';
 
 // Pre-seeded comprehensive catalog of official AvalAI models
 const SEED_MODELS = [
@@ -57,7 +58,7 @@ export const ModelsView = {
         </div>
         <div class="view-header-actions">
           <button class="btn btn-secondary btn-sm" id="btn-sync-models">
-            🔄 Fetch Live from AvalAI
+            ${Icons.refresh()} Fetch Live from AvalAI
           </button>
         </div>
       </div>
@@ -152,19 +153,19 @@ export const ModelsView = {
         </div>
 
         <div class="model-features-row">
-          ${m.supports_vision ? '<span class="badge badge-primary" title="Vision Multimodal Input">👁️ Vision</span>' : ''}
-          ${m.supports_audio_input ? '<span class="badge badge-cyan" title="Audio / Voice Input">🎙️ Audio In</span>' : ''}
-          ${m.supports_audio_output ? '<span class="badge badge-cyan" title="Spoken Audio Output">🔊 Audio Out</span>' : ''}
-          ${m.supports_pdf_input ? '<span class="badge badge-amber" title="PDF Document Processing">📄 PDF</span>' : ''}
-          ${m.supports_reasoning ? '<span class="badge badge-violet" title="Reasoning Process">🧠 Reasoning</span>' : ''}
-          ${m.supports_function_calling ? '<span class="badge badge-cyan" title="Function Calling">🛠️ Tools</span>' : ''}
-          ${m.supports_web_search ? '<span class="badge badge-emerald" title="Web Search">🌐 Web Search</span>' : ''}
-          ${m.supports_prompt_caching ? '<span class="badge badge-primary" title="Prompt Caching">⚡ Cache</span>' : ''}
+          ${m.supports_vision ? `<span class="badge badge-primary" title="Vision Multimodal Input">${Icons.eye('svg-icon', 12)} Vision</span>` : ''}
+          ${m.supports_audio_input ? `<span class="badge badge-cyan" title="Audio / Voice Input">${Icons.audio('svg-icon', 12)} Audio In</span>` : ''}
+          ${m.supports_audio_output ? `<span class="badge badge-cyan" title="Spoken Audio Output">${Icons.volume2('svg-icon', 12)} Audio Out</span>` : ''}
+          ${m.supports_pdf_input ? `<span class="badge badge-amber" title="PDF Document Processing">${Icons.fileText('svg-icon', 12)} PDF</span>` : ''}
+          ${m.supports_reasoning ? `<span class="badge badge-violet" title="Reasoning Process">${Icons.cpu('svg-icon', 12)} Reasoning</span>` : ''}
+          ${m.supports_function_calling ? `<span class="badge badge-cyan" title="Function Calling">${Icons.code('svg-icon', 12)} Tools</span>` : ''}
+          ${m.supports_web_search ? `<span class="badge badge-emerald" title="Web Search">${Icons.search('svg-icon', 12)} Web Search</span>` : ''}
+          ${m.supports_prompt_caching ? `<span class="badge badge-primary" title="Prompt Caching">${Icons.sparkles('svg-icon', 12)} Cache</span>` : ''}
         </div>
 
         ${isChat ? `
           <button class="btn btn-secondary btn-sm btn-use-chat" data-model-id="${m.id}" style="margin-top: auto; width: 100%;">
-            💬 Open in Chat Playground
+            ${Icons.chat('svg-icon', 14)} Open in Chat Playground
           </button>
         ` : ''}
       </div>

@@ -2,6 +2,7 @@
 import { store } from '../store.js';
 import { AvalAIApi } from '../api.js';
 import { formatIRT, formatUSD, formatDate, maskKey } from '../utils/formatters.js';
+import { Icons } from '../utils/icons.js';
 
 export const KeysView = {
   init(container, showToast) {
@@ -23,13 +24,13 @@ export const KeysView = {
         </div>
         <div class="view-header-actions">
           <button class="btn btn-secondary btn-sm" id="btn-bulk-audit">
-            ⚡ Audit All Keys
+            ${Icons.audit()} Audit All Keys
           </button>
           <button class="btn btn-secondary btn-sm" id="btn-export-keys">
-            📤 Export
+            ${Icons.download()} Export
           </button>
           <button class="btn btn-primary" id="btn-open-add-key">
-            <span>+</span> Add AvalAI Key
+            ${Icons.plus()} Add AvalAI Key
           </button>
         </div>
       </div>
@@ -108,7 +109,9 @@ export const KeysView = {
 
         <div class="key-card-key-display">
           <span>${maskKey(key.key)}</span>
-          <button class="btn btn-secondary btn-sm btn-icon-only btn-copy-key" title="Copy Key" data-raw-key="${key.key}">📋</button>
+          <button class="btn btn-secondary btn-sm btn-icon-only btn-copy-key" title="Copy Key" data-raw-key="${key.key}">
+            ${Icons.copy('svg-icon', 14)}
+          </button>
         </div>
 
         <div class="key-card-stats">
@@ -141,9 +144,13 @@ export const KeysView = {
         <div class="key-card-actions">
           <div style="display: flex; gap: 8px;">
             ${!isActive ? `<button class="btn btn-secondary btn-sm btn-set-active" data-id="${key.id}">Set Active</button>` : ''}
-            <button class="btn btn-secondary btn-sm btn-audit-key" data-id="${key.id}">🩺 Audit</button>
+            <button class="btn btn-secondary btn-sm btn-audit-key" data-id="${key.id}">
+              ${Icons.audit('svg-icon', 14)} Audit
+            </button>
           </div>
-          <button class="btn btn-danger btn-sm btn-delete-key" data-id="${key.id}">Delete</button>
+          <button class="btn btn-danger btn-sm btn-delete-key" data-id="${key.id}">
+            ${Icons.trash('svg-icon', 14)} Delete
+          </button>
         </div>
       </div>
     `;

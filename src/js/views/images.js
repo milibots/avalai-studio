@@ -2,6 +2,7 @@
 import { store } from '../store.js';
 import { Database } from '../db.js';
 import { AvalAIApi } from '../api.js';
+import { Icons } from '../utils/icons.js';
 
 export const ImagesView = {
   async init(container, showToast) {
@@ -78,7 +79,7 @@ export const ImagesView = {
           </div>
 
           <button class="btn btn-primary btn-lg" id="btn-generate-image" ${!activeKey || this.isGenerating ? 'disabled' : ''} style="margin-top: 10px;">
-            ${this.isGenerating ? 'Rendering Image...' : '✨ Generate Image'}
+            ${this.isGenerating ? 'Rendering Image...' : `${Icons.sparkles('svg-icon', 15)} Generate Image`}
           </button>
 
           ${this.gallery.length > 0 ? `
@@ -107,7 +108,7 @@ export const ImagesView = {
             </div>
             <div style="margin-top: 16px; display: flex; gap: 12px; align-items: center;">
               <a href="${this.currentImage.url}" download="avalai_generated_${Date.now()}.png" class="btn btn-primary btn-sm">
-                💾 Download PNG
+                ${Icons.download('svg-icon', 14)} Download PNG
               </a>
               <span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">
                 Model: ${this.currentImage.model} | ${this.currentImage.size}
@@ -115,7 +116,7 @@ export const ImagesView = {
             </div>
           ` : `
             <div style="text-align: center; color: var(--text-muted);">
-              <div style="font-size: 54px; margin-bottom: 12px;">🎨</div>
+              <div style="margin-bottom: 12px; display: flex; justify-content: center;">${Icons.images('svg-icon', 48)}</div>
               <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">Image Preview Canvas</h3>
               <p style="font-size: 13px; max-width: 360px;">
                 Enter a visual brief and hit generate to render high-resolution images via AvalAI Image API.

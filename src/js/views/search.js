@@ -1,6 +1,7 @@
 // Web Search API Testing Lab View
 import { store } from '../store.js';
 import { AvalAIApi } from '../api.js';
+import { Icons } from '../utils/icons.js';
 
 export const SearchView = {
   init(container, showToast) {
@@ -26,7 +27,7 @@ export const SearchView = {
       <div class="card">
         <div class="card-header">
           <div class="card-title">
-            <span>🌐</span>
+            ${Icons.search(18)}
             <span>Execute Web Search Query</span>
           </div>
           <span class="badge badge-primary">POST /v1/search</span>
@@ -53,7 +54,7 @@ export const SearchView = {
 
           <div>
             <button class="btn btn-primary" id="btn-run-search" style="width: 100%; height: 42px;" ${!activeKey ? 'disabled' : ''}>
-              ${this.isSearching ? 'Searching...' : '🔍 Search'}
+              ${this.isSearching ? 'Searching...' : `${Icons.search(14)} Search`}
             </button>
           </div>
         </div>
@@ -92,7 +93,7 @@ export const SearchView = {
           </div>
         ` : `
           <div class="card" style="text-align: center; padding: 40px; color: var(--text-muted);">
-            <div style="font-size: 40px; margin-bottom: 8px;">🔍</div>
+            <div style="margin-bottom: 12px; color: var(--text-muted);">${Icons.search(40)}</div>
             <p>Run a search query to inspect real-time structured search results and metadata.</p>
           </div>
         `}

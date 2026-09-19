@@ -1,6 +1,7 @@
 // Embeddings & Rerank Lab View
 import { store } from '../store.js';
 import { AvalAIApi } from '../api.js';
+import { Icons } from '../utils/icons.js';
 
 function cosineSimilarity(vecA, vecB) {
   let dot = 0.0;
@@ -41,7 +42,7 @@ export const EmbeddingsView = {
         <div class="card">
           <div class="card-header">
             <div class="card-title">
-              <span>🧬</span>
+              ${Icons.embeddings(18)}
               <span>Semantic Similarity (Embeddings)</span>
             </div>
             <span class="badge badge-primary">POST /v1/embeddings</span>
@@ -69,7 +70,7 @@ export const EmbeddingsView = {
             </div>
 
             <button class="btn btn-primary" id="btn-calc-similarity" ${!activeKey ? 'disabled' : ''}>
-              ${this.isCalculating ? 'Computing Vectors...' : '⚡ Compute Cosine Similarity'}
+              ${this.isCalculating ? 'Computing Vectors...' : `${Icons.sparkles(14)} Compute Cosine Similarity`}
             </button>
 
             ${this.isCalculating ? `
@@ -96,7 +97,7 @@ export const EmbeddingsView = {
         <div class="card">
           <div class="card-header">
             <div class="card-title">
-              <span>🎯</span>
+              ${Icons.search(18)}
               <span>Document Reranking Lab</span>
             </div>
             <span class="badge badge-emerald">POST /v1/rerank</span>
@@ -125,7 +126,7 @@ You can monitor rate limits using the x-ratelimit-remaining headers.</textarea>
             </div>
 
             <button class="btn btn-primary" id="btn-run-rerank" ${!activeKey ? 'disabled' : ''}>
-              ${this.isReranking ? 'Reranking...' : '📊 Run Reranking'}
+              ${this.isReranking ? 'Reranking...' : `${Icons.play(14)} Run Reranking`}
             </button>
 
             ${this.isReranking ? `
