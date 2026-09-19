@@ -68,6 +68,22 @@ class App {
     // Initial ping
     this.checkConnection();
     setInterval(() => this.checkConnection(), 30000);
+
+    // App Version setup
+    try {
+      if (window.avalai?.updater?.getVersion) {
+        const v = await window.avalai.updater.getVersion();
+        const versionEl = document.getElementById('sidebar-app-version');
+        if (versionEl) versionEl.textContent = `v${v}`;
+      }
+    } catch (e) {
+      console.error('Failed to get app version:', e);
+    }
+
+    // Automatic GitHub update check after 3 seconds
+    setTimeout(() => {
+      this.checkForUpdates(true);
+    }, 3000);
   }
 
   setupHeader() {
@@ -107,6 +123,7 @@ class App {
     });
 
     // SQLite DB Open Folder Button
+    // SQLite DB Open Folder Button
     const folderBtn = document.getElementById('header-btn-show-db-folder');
     folderBtn?.addEventListener('click', async () => {
       const res = await Database.showInFolder();
@@ -115,6 +132,12 @@ class App {
       } else {
         this.showToast('Could not open folder', 'error');
       }
+    });
+
+    // Check Updates Button in Header
+    const updateBtn = document.getElementById('header-btn-check-updates');
+    updateBtn?.addEventListener('click', () => {
+      this.checkForUpdates(false);
     });
 
     // Quick add key button in header
@@ -214,6 +237,122 @@ class App {
       toast.style.transition = 'all 0.3s ease';
       setTimeout(() => toast.remove(), 300);
     }, 4000);
+  }
+
+  async checkForUpdates(isSilent = false) {
+    const updateBtn = document.getElementById('header-btn-check-updates');
+    const updateIcon = updateBtn?.querySelector('.svg-icon');
+    if (updateIcon) updateIcon.classList.add('spin');
+
+    if (!isSilent) {
+      this.showToast('Checking GitHub repository for updates...', 'info');
+    }
+
+    try {
+      if (!window.avalai?.updater?.check) return;
+      const info = await window.avalai.updater.check();
+      if (updateIcon) updateIcon.classList.remove('spin');
+
+      if (!info.success) {
+        if (!isSilent) {
+          this.showToast(`Update check: ${info.error || 'Connection error'}`, 'error');
+        }
+        return;
+      }
+
+      if (info.hasUpdate) {
+        this.showUpdateModal(info);
+      } else {
+        if (!isSilent) {
+          this.showToast(`AvalAI Studio is up to date (v${info.currentVersion})`, 'success');
+        }
+      }
+    } catch (err) {
+      if (updateIcon) updateIcon.classList.remove('spin');
+      if (!isSilent) {
+        this.showToast(`Update check error: ${err.message}`, 'error');
+      }
+    }
+  }
+
+  showUpdateModal(info) {
+    const root = document.getElementById('update-modal-root');
+    if (!root) return;
+
+    const sizeText = info.assetSize ? ` (${(info.assetSize / (1024 * 1024)).toFixed(1)} MB)` : '';
+
+    root.innerHTML = `
+      <div class="modal-backdrop" style="display: flex; align-items: center; justify-content: center;">
+        <div class="modal" style="max-width: 520px; width: 90%;">
+          <div class="modal-header">
+            <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+              ${Icons.cloudDownload('svg-icon', 20)}
+              <span>New Update Available</span>
+            </div>
+            <button class="btn btn-secondary btn-sm btn-icon-only" id="modal-btn-close-update">
+              ${Icons.close('svg-icon', 14)}
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <span style="font-size: 18px; font-weight: 800; color: var(--text-primary);">${info.name || 'AvalAI Studio ' + info.tagName}</span>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                  Published: ${info.publishedAt ? new Date(info.publishedAt).toLocaleDateString() : 'Recently'}
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <span class="badge badge-primary" style="font-family: var(--font-mono);">v${info.latestVersion}</span>
+                <span class="badge badge-muted" style="font-family: var(--font-mono); font-size: 10px;">Current: v${info.currentVersion}</span>
+              </div>
+            </div>
+
+            ${info.assetName ? `
+              <div style="background: var(--bg-surface-hover); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 10px 14px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-primary); font-family: var(--font-mono); font-size: 11px;">${info.assetName}</span>
+                <span style="color: var(--text-muted); font-size: 11px;">${sizeText}</span>
+              </div>
+            ` : ''}
+
+            ${info.notes ? `
+              <div>
+                <label class="form-label" style="margin-bottom: 6px;">Release Changelog</label>
+                <div class="update-changelog-box">${info.notes}</div>
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="modal-btn-dismiss-update">Later</button>
+            <button class="btn btn-secondary" id="modal-btn-view-github">
+              View on GitHub
+            </button>
+            <button class="btn btn-primary" id="modal-btn-download-update">
+              ${Icons.download('svg-icon', 14)}
+              Download Update
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Handlers
+    const closeModal = () => { root.innerHTML = ''; };
+    root.querySelector('#modal-btn-close-update')?.addEventListener('click', closeModal);
+    root.querySelector('#modal-btn-dismiss-update')?.addEventListener('click', closeModal);
+
+    root.querySelector('#modal-btn-view-github')?.addEventListener('click', () => {
+      if (info.htmlUrl) window.avalai.openExternal(info.htmlUrl);
+    });
+
+    root.querySelector('#modal-btn-download-update')?.addEventListener('click', () => {
+      if (info.downloadUrl) {
+        window.avalai.openExternal(info.downloadUrl);
+        this.showToast('Opening update download in your browser...', 'info');
+      }
+      closeModal();
+    });
   }
 }
 

@@ -60,5 +60,12 @@ contextBridge.exposeInMainWorld('avalai', {
   },
 
   // Shell
-  openExternal: (url) => ipcRenderer.invoke('app:open-external', url)
+  openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
+
+  // Auto-Updater
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check'),
+    getVersion: () => ipcRenderer.invoke('updater:get-version')
+  }
 });
+

@@ -78,6 +78,16 @@
           </svg>
         </button>
 
+        <!-- Check for GitHub Updates -->
+        <button class="btn btn-secondary btn-sm" id="header-btn-check-updates" title="Check GitHub for Updates">
+          <svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
+            <path d="M12 12v9"/>
+            <path d="m8 17 4 4 4-4"/>
+          </svg>
+          <span style="font-size: 11px;">Update</span>
+        </button>
+
         <div class="header-status-badge">
           <span class="status-dot loading" id="header-status-dot"></span>
           <span id="header-status-text">Checking API...</span>
@@ -192,11 +202,17 @@
         </div>
 
         <div style="margin-top: auto; padding: 12px; background: var(--bg-surface-hover); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); font-size: 11px; color: var(--text-muted);">
-          <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">AvalAI Platform</div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-weight: 700; color: var(--text-primary);">AvalAI Studio</span>
+            <span class="badge badge-muted" id="sidebar-app-version" style="font-size: 10px; padding: 1px 6px;">v1.0.0</span>
+          </div>
           <div>Endpoint: <strong style="color: var(--text-secondary); font-family: var(--font-mono);">api.avalai.ir</strong></div>
-          <div style="margin-top: 6px; display: flex; gap: 10px;">
-            <a href="https://docs.avalai.ir" target="_blank" style="color: var(--text-secondary); text-decoration: none; font-weight: 600;">Docs ↗</a>
-            <a href="https://status.avalai.ir" target="_blank" style="color: var(--text-secondary); text-decoration: none; font-weight: 600;">Status ↗</a>
+          <div style="margin-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 8px;">
+              <a href="https://docs.avalai.ir" target="_blank" style="color: var(--text-secondary); text-decoration: none; font-weight: 600;">Docs ↗</a>
+              <a href="https://status.avalai.ir" target="_blank" style="color: var(--text-secondary); text-decoration: none; font-weight: 600;">Status ↗</a>
+            </div>
+            <a href="https://github.com/milibots/avalai-studio" target="_blank" style="color: var(--text-secondary); text-decoration: none; font-weight: 600;">GitHub ↗</a>
           </div>
         </div>
       </aside>
@@ -214,6 +230,9 @@
         <div class="view-container" id="view-transactions"></div>
       </main>
     </div>
+
+    <!-- Update Dialog Modal Container -->
+    <div id="update-modal-root"></div>
 
     <!-- Toast Notification Container -->
     <div id="toast-container"></div>

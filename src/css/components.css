@@ -405,3 +405,19 @@
   color: var(--text-primary);
   box-shadow: var(--shadow-sm);
 }
+
+/* Update Changelog Box */
+.update-changelog-box {
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  font-family: var(--font-base);
+}
+

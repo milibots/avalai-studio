@@ -495,3 +495,95 @@ ipcMain.handle('avalai:stream-cancel', (event, streamId) => {
   }
   return { cancelled: false, reason: 'Not found' };
 });
+
+// GitHub Release Auto-Updater
+function isNewerVersion(latest, current) {
+  if (!latest || !current) return false;
+  const clean = (v) => v.replace(/^v/, '').split('-')[0];
+  const l = clean(latest).split('.').map(n => parseInt(n, 10) || 0);
+  const c = clean(current).split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(l.length, c.length); i++) {
+    const lNum = l[i] || 0;
+    const cNum = c[i] || 0;
+    if (lNum > cNum) return true;
+    if (lNum < cNum) return false;
+  }
+  return false;
+}
+
+ipcMain.handle('updater:get-version', () => {
+  return app.getVersion();
+});
+
+ipcMain.handle('updater:check', async () => {
+  const currentVersion = app.getVersion();
+  const repo = 'milibots/avalai-studio';
+  const url = `https://api.github.com/repos/${repo}/releases/latest`;
+
+  return new Promise((resolve) => {
+    try {
+      const parsedUrl = new URL(url);
+      const req = https.request({
+        hostname: parsedUrl.hostname,
+        path: parsedUrl.pathname,
+        method: 'GET',
+        headers: {
+          'User-Agent': 'AvalAI-Studio-Desktop',
+          'Accept': 'application/vnd.github.v3+json'
+        },
+        timeout: 10000
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            try {
+              const release = JSON.parse(data);
+              const latestTag = release.tag_name || '';
+              const latestVersion = latestTag.replace(/^v/, '');
+              const hasUpdate = isNewerVersion(latestVersion, currentVersion);
+              
+              // Find installer asset (.exe)
+              const exeAsset = (release.assets || []).find(a => 
+                a.name.endsWith('.exe') && !a.name.includes('blockmap')
+              );
+              
+              resolve({
+                success: true,
+                hasUpdate,
+                currentVersion,
+                latestVersion,
+                tagName: latestTag,
+                name: release.name || latestTag,
+                publishedAt: release.published_at,
+                notes: release.body || '',
+                htmlUrl: release.html_url,
+                downloadUrl: exeAsset ? exeAsset.browser_download_url : release.html_url,
+                assetName: exeAsset ? exeAsset.name : null,
+                assetSize: exeAsset ? exeAsset.size : null
+              });
+            } catch (e) {
+              resolve({ success: false, error: 'Failed to parse release: ' + e.message, currentVersion });
+            }
+          } else if (res.statusCode === 404) {
+            resolve({ success: true, hasUpdate: false, currentVersion, message: 'No releases found on GitHub repository.' });
+          } else {
+            resolve({ success: false, error: `GitHub API returned HTTP ${res.statusCode}`, currentVersion });
+          }
+        });
+      });
+
+      req.on('error', (err) => {
+        resolve({ success: false, error: err.message, currentVersion });
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ success: false, error: 'Connection to GitHub timed out', currentVersion });
+      });
+      req.end();
+    } catch (err) {
+      resolve({ success: false, error: err.message, currentVersion });
+    }
+  });
+});
+
