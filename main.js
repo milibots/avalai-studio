@@ -312,7 +312,23 @@ ipcMain.handle('avalai:request', async (event, { url, method = 'GET', headers = 
     };
 
     if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-      if (typeof body === 'object' && !(body instanceof Uint8Array)) {
+      if (body.isMultipart) {
+        const fd = new FormData();
+        if (body.fields) {
+          Object.entries(body.fields).forEach(([k, v]) => {
+            if (v !== undefined && v !== null) fd.append(k, String(v));
+          });
+        }
+        if (body.file && body.file.base64) {
+          const rawBase64 = body.file.base64.replace(/^data:[^;]+;base64,/, '');
+          const fileBuf = Buffer.from(rawBase64, 'base64');
+          const fileBlob = new Blob([fileBuf], { type: body.file.mime || 'audio/wav' });
+          fd.append(body.file.fieldName || 'file', fileBlob, body.file.filename || 'recording.wav');
+        }
+        fetchOptions.body = fd;
+        delete fetchOptions.headers['Content-Type'];
+        delete fetchOptions.headers['content-type'];
+      } else if (typeof body === 'object' && !(body instanceof Uint8Array)) {
         fetchOptions.body = JSON.stringify(body);
         if (!fetchOptions.headers['Content-Type'] && !fetchOptions.headers['content-type']) {
           fetchOptions.headers['Content-Type'] = 'application/json';

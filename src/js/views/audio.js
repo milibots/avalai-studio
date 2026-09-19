@@ -1,4 +1,4 @@
-// Audio & Speech Lab View with SQLite Audio History and Skeletons
+// Audio & Speech Lab View with TTS Synthesis and Whisper Transcriptions Lab
 import { store } from '../store.js';
 import { Database } from '../db.js';
 import { AvalAIApi } from '../api.js';
@@ -8,8 +8,18 @@ export const AudioView = {
     this.container = container;
     this.showToast = showToast;
     this.isSynthesizing = false;
+    this.isTranscribing = false;
     this.currentAudioUrl = null;
+    this.transcriptionResult = '';
+    this.transcribeFile = null; // { base64, name, mime }
     this.audioHistory = [];
+
+    // Voice recording for transcription
+    this.transcribeRecorder = null;
+    this.transcribeChunks = [];
+    this.transcribeTimer = null;
+    this.transcribeSec = 0;
+    this.isTranscribeRecording = false;
 
     // Load from SQLite
     try {
@@ -35,7 +45,7 @@ export const AudioView = {
       <div class="view-header">
         <div class="view-header-title-block">
           <h1>Audio & Speech Studio</h1>
-          <p>Synthesize realistic voice with OpenAI, ElevenLabs, and Gemini TTS models, or transcribe recordings.</p>
+          <p>Synthesize realistic voices with OpenAI, ElevenLabs, and Gemini TTS, or transcribe audio with Whisper.</p>
         </div>
       </div>
 
@@ -78,7 +88,7 @@ export const AudioView = {
 
             <div class="form-group">
               <label class="form-label">Text to Speak</label>
-              <textarea class="form-textarea" id="tts-input-text" placeholder="Enter text to synthesize into spoken audio..." style="min-height: 100px;">Welcome to AvalAI. Today is a wonderful day to build something people love.</textarea>
+              <textarea class="form-textarea" id="tts-input-text" placeholder="Enter text to synthesize into spoken audio..." style="min-height: 90px;">Welcome to AvalAI. Today is a wonderful day to build something people love.</textarea>
             </div>
 
             <div class="form-group">
@@ -107,22 +117,11 @@ export const AudioView = {
               </div>
             </div>
           ` : ''}
-        </div>
-
-        <!-- Audio Transcriptions Info Card -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <span>🎧</span>
-              <span>Audio Transcriptions & Recent Library</span>
-            </div>
-            <span class="badge badge-muted">${this.audioHistory.length} saved</span>
-          </div>
 
           ${this.audioHistory.length > 0 ? `
-            <div style="margin-bottom: 16px;">
-              <span class="form-label">Recent Generated Clips:</span>
-              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-height: 160px; overflow-y: auto;">
+            <div style="margin-top: 20px;">
+              <span class="form-label">Recent Generated Clips (${this.audioHistory.length}):</span>
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-height: 140px; overflow-y: auto;">
                 ${this.audioHistory.map(a => `
                   <div style="background: var(--bg-surface); padding: 8px 12px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
                     <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">${a.input_text || 'Clip'}</span>
@@ -132,18 +131,74 @@ export const AudioView = {
               </div>
             </div>
           ` : ''}
+        </div>
 
-          <div style="color: var(--text-secondary); font-size: 13px; line-height: 1.6; display: flex; flex-direction: column; gap: 14px;">
-            <p>
-              AvalAI exposes standard Whisper and Gemini transcription APIs. You can send audio recordings (MP3, WAV, M4A, OGG) to transcribe speech into text with timestamp precision.
-            </p>
+        <!-- Speech to Text Transcriptions Card -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>🎧</span>
+              <span>Speech-to-Text Transcription</span>
+            </div>
+            <span class="badge badge-emerald">POST /v1/audio/transcriptions</span>
+          </div>
 
-            <div class="card" style="background: var(--bg-surface); padding: 14px;">
-              <h4 style="font-size: 13px; color: var(--text-primary); margin-bottom: 6px;">Supported Models:</h4>
-              <ul style="padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan);">
-                <li>whisper-1</li>
-                <li>gemini-2.5-flash (multimodal audio)</li>
-              </ul>
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label">Transcription Model</label>
+              <select class="form-select" id="transcribe-select-model">
+                <option value="whisper-1">OpenAI: whisper-1 (Multilingual & Robust)</option>
+                <option value="gpt-4o-transcribe">OpenAI: gpt-4o-transcribe</option>
+                <option value="gpt-4o-mini-transcribe">OpenAI: gpt-4o-mini-transcribe</option>
+                <option value="groq.whisper-large-v3-turbo">Groq: Whisper Large V3 Turbo</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Language (Optional)</label>
+              <input type="text" class="form-input" id="transcribe-input-lang" placeholder="e.g. fa (Persian), en (English), ar, fr" />
+            </div>
+
+            <!-- Audio Input Options: Record OR File Upload -->
+            <div class="form-group">
+              <label class="form-label">Audio Source</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="file" id="transcribe-file-input" accept="audio/*,.wav,.mp3,.m4a,.webm,.ogg" style="display: none;" />
+                <button class="btn btn-secondary btn-sm" id="btn-transcribe-choose-file">
+                  📁 Choose Audio File
+                </button>
+                <button class="btn btn-secondary btn-sm" id="btn-transcribe-record">
+                  🎙️ Record Voice
+                </button>
+                ${this.transcribeFile ? `
+                  <span style="font-size: 12px; color: var(--accent-cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">
+                    ✓ ${this.transcribeFile.name}
+                  </span>
+                ` : ''}
+              </div>
+            </div>
+
+            ${this.transcribeFile ? `
+              <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                <audio controls src="${this.transcribeFile.base64}" style="width: 100%; height: 36px;"></audio>
+              </div>
+            ` : ''}
+
+            <button class="btn btn-primary btn-lg" id="btn-run-transcription" ${!activeKey || !this.transcribeFile || this.isTranscribing ? 'disabled' : ''}>
+              ${this.isTranscribing ? 'Transcribing with Whisper...' : '⚡ Transcribe Audio to Text'}
+            </button>
+
+            <!-- Transcription Output Box -->
+            <div class="form-group" style="margin-top: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0;">Transcribed Text</label>
+                ${this.transcriptionResult ? `
+                  <button class="btn btn-secondary btn-sm" id="btn-copy-transcription" style="padding: 2px 8px; font-size: 11px;">
+                    📋 Copy Text
+                  </button>
+                ` : ''}
+              </div>
+              <textarea class="form-textarea" id="transcribe-output-text" readonly placeholder="Transcribed text will appear here..." style="min-height: 120px; font-family: var(--font-base); font-size: 13px;">${this.transcriptionResult}</textarea>
             </div>
           </div>
         </div>
@@ -154,6 +209,7 @@ export const AudioView = {
   },
 
   bindEvents() {
+    // Synthesis
     this.container.querySelector('#btn-synthesize-speech')?.addEventListener('click', () => {
       this.synthesize();
     });
@@ -165,6 +221,148 @@ export const AudioView = {
         this.render();
       });
     });
+
+    // Transcription File Upload
+    const fileInput = this.container.querySelector('#transcribe-file-input');
+    const chooseFileBtn = this.container.querySelector('#btn-transcribe-choose-file');
+    chooseFileBtn?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          this.transcribeFile = {
+            base64: re.target.result,
+            name: file.name,
+            mime: file.type || 'audio/wav'
+          };
+          this.render();
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Transcription Voice Recording
+    const recordBtn = this.container.querySelector('#btn-transcribe-record');
+    recordBtn?.addEventListener('click', () => {
+      this.toggleTranscribeRecording();
+    });
+
+    // Run Transcription
+    this.container.querySelector('#btn-run-transcription')?.addEventListener('click', () => {
+      this.runTranscription();
+    });
+
+    // Copy Transcription
+    this.container.querySelector('#btn-copy-transcription')?.addEventListener('click', () => {
+      if (this.transcriptionResult) {
+        navigator.clipboard.writeText(this.transcriptionResult);
+        this.showToast('Transcribed text copied to clipboard!', 'success');
+      }
+    });
+  },
+
+  async toggleTranscribeRecording() {
+    if (this.isTranscribeRecording) {
+      if (this.transcribeRecorder && this.transcribeRecorder.state !== 'inactive') {
+        this.transcribeRecorder.stop();
+      }
+      clearInterval(this.transcribeTimer);
+      this.isTranscribeRecording = false;
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.transcribeChunks = [];
+        const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? { mimeType: 'audio/webm;codecs=opus' }
+          : {};
+
+        this.transcribeRecorder = new MediaRecorder(stream, options);
+        this.transcribeRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) this.transcribeChunks.push(e.data);
+        };
+
+        this.transcribeRecorder.onstop = () => {
+          clearInterval(this.transcribeTimer);
+          this.isTranscribeRecording = false;
+          const mime = this.transcribeRecorder.mimeType || 'audio/webm';
+          const blob = new Blob(this.transcribeChunks, { type: mime });
+          stream.getTracks().forEach(t => t.stop());
+
+          const reader = new FileReader();
+          reader.onload = (re) => {
+            this.transcribeFile = {
+              base64: re.target.result,
+              name: `Recording (${this.transcribeSec}s).webm`,
+              mime
+            };
+            this.render();
+          };
+          reader.readAsDataURL(blob);
+        };
+
+        this.transcribeRecorder.start(250);
+        this.isTranscribeRecording = true;
+        this.transcribeSec = 0;
+
+        const recordBtn = this.container.querySelector('#btn-transcribe-record');
+        if (recordBtn) {
+          recordBtn.classList.add('btn-recording');
+          recordBtn.innerHTML = `⏹️ 00:00`;
+        }
+
+        this.transcribeTimer = setInterval(() => {
+          this.transcribeSec++;
+          const mins = String(Math.floor(this.transcribeSec / 60)).padStart(2, '0');
+          const secs = String(this.transcribeSec % 60).padStart(2, '0');
+          if (recordBtn) recordBtn.innerHTML = `⏹️ ${mins}:${secs}`;
+        }, 1000);
+
+        this.showToast('🎙️ Recording voice for transcription... Click again to stop.', 'info');
+      } catch (err) {
+        this.showToast('Microphone error: ' + err.message, 'error');
+      }
+    }
+  },
+
+  async runTranscription() {
+    const activeKey = store.getActiveKey();
+    if (!activeKey || !this.transcribeFile) return;
+
+    const model = this.container.querySelector('#transcribe-select-model')?.value || 'whisper-1';
+    const language = this.container.querySelector('#transcribe-input-lang')?.value.trim();
+
+    this.isTranscribing = true;
+    this.render();
+    this.showToast(`Transcribing audio with ${model}...`, 'info');
+
+    try {
+      const res = await AvalAIApi.transcribeAudio({
+        apiKey: activeKey.key,
+        model,
+        fileBase64: this.transcribeFile.base64,
+        filename: this.transcribeFile.name || 'recording.wav',
+        mime: this.transcribeFile.mime || 'audio/wav',
+        language: language || undefined
+      });
+
+      this.isTranscribing = false;
+
+      if (res.success && res.data) {
+        this.transcriptionResult = res.data.text || JSON.stringify(res.data);
+        this.render();
+        this.showToast('✅ Audio successfully transcribed!', 'success');
+      } else {
+        this.transcriptionResult = `⚠️ Error (${res.status}): ${res.data?.message || res.statusText || 'Transcription failed'}`;
+        this.render();
+        this.showToast('Transcription failed: ' + (res.data?.message || res.statusText), 'error');
+      }
+    } catch (err) {
+      this.isTranscribing = false;
+      this.transcriptionResult = `⚠️ Network Error: ${err.message}`;
+      this.render();
+      this.showToast('Error: ' + err.message, 'error');
+    }
   },
 
   async synthesize() {

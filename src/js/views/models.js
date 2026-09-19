@@ -5,20 +5,21 @@ import { formatTokens } from '../utils/formatters.js';
 
 // Pre-seeded comprehensive catalog of official AvalAI models
 const SEED_MODELS = [
-  { id: 'gpt-6-astra', owned_by: 'openai', min_tier: 0, pricing: { input: 2.5, cached_input: 1.25, output: 10.0 }, mode: 'chat', max_tokens: 1000000, supports_function_calling: true, supports_web_search: true, supports_prompt_caching: true },
-  { id: 'claude-fable-5-1', owned_by: 'anthropic', min_tier: 0, pricing: { input: 3.0, cached_input: 0.3, output: 15.0 }, mode: 'chat', max_tokens: 1000000, supports_function_calling: true, supports_web_search: true, supports_prompt_caching: true },
-  { id: 'gemini-3.8-flash', owned_by: 'google', min_tier: 0, pricing: { input: 0.075, cached_input: 0.01875, output: 0.3 }, mode: 'chat', max_tokens: 1000000, supports_function_calling: true, supports_web_search: true, supports_prompt_caching: true },
-  { id: 'glm-5.3', owned_by: 'zai', min_tier: 0, pricing: { input: 1.5, cached_input: 0.3, output: 5.0 }, mode: 'chat', max_tokens: 1000000, supports_function_calling: true, supports_prompt_caching: true },
+  { id: 'gpt-6-astra', owned_by: 'openai', min_tier: 0, pricing: { input: 2.5, cached_input: 1.25, output: 10.0 }, mode: 'chat', max_tokens: 1000000, supports_vision: true, supports_pdf_input: true, supports_reasoning: true, supports_function_calling: true, supports_web_search: true, supports_prompt_caching: true },
+  { id: 'claude-fable-5-1', owned_by: 'anthropic', min_tier: 0, pricing: { input: 3.0, cached_input: 0.3, output: 15.0 }, mode: 'chat', max_tokens: 1000000, supports_vision: true, supports_pdf_input: true, supports_function_calling: true, supports_web_search: true, supports_prompt_caching: true },
+  { id: 'gemini-3.8-flash', owned_by: 'google', min_tier: 0, pricing: { input: 0.075, cached_input: 0.01875, output: 0.3 }, mode: 'chat', max_tokens: 1000000, supports_vision: true, supports_audio_input: true, supports_pdf_input: true, supports_function_calling: true, supports_web_search: true, supports_prompt_caching: true },
+  { id: 'gpt-audio-mini', owned_by: 'openai', min_tier: 0, pricing: { input: 0.15, output: 0.6 }, mode: 'chat', max_tokens: 128000, supports_audio_input: true, supports_audio_output: true, supports_function_calling: true },
+  { id: 'glm-5.3', owned_by: 'zai', min_tier: 0, pricing: { input: 1.5, cached_input: 0.3, output: 5.0 }, mode: 'chat', max_tokens: 1000000, supports_reasoning: true, supports_function_calling: true, supports_prompt_caching: true },
   { id: 'glm-5.3-flash', owned_by: 'zai', min_tier: 0, pricing: { input: 0.3, cached_input: 0.06, output: 1.2 }, mode: 'chat', max_tokens: 991000, supports_function_calling: true },
-  { id: 'deepseek-v4-pro', owned_by: 'deepseek', min_tier: 0, pricing: { input: 0.55, cached_input: 0.14, output: 2.19 }, mode: 'chat', max_tokens: 128000, supports_function_calling: true, supports_prompt_caching: true },
+  { id: 'deepseek-v4-pro', owned_by: 'deepseek', min_tier: 0, pricing: { input: 0.55, cached_input: 0.14, output: 2.19 }, mode: 'chat', max_tokens: 128000, supports_reasoning: true, supports_function_calling: true, supports_prompt_caching: true },
   { id: 'deepseek-v4-flash', owned_by: 'deepseek', min_tier: 0, pricing: { input: 0.14, cached_input: 0.035, output: 0.55 }, mode: 'chat', max_tokens: 128000, supports_function_calling: true },
-  { id: 'qwen3.8-27b', owned_by: 'alibaba', min_tier: 0, pricing: { input: 0.4, cached_input: 0.1, output: 1.6 }, mode: 'chat', max_tokens: 131072, supports_function_calling: true },
-  { id: 'qwen3.8-flash', owned_by: 'alibaba', min_tier: 0, pricing: { input: 0.1, cached_input: 0.02, output: 0.4 }, mode: 'chat', max_tokens: 131072, supports_function_calling: true },
-  { id: 'gpt-5.6-luna', owned_by: 'openai', min_tier: 0, pricing: { input: 1.2, cached_input: 0.3, output: 4.8 }, mode: 'chat', max_tokens: 256000, supports_function_calling: true, supports_web_search: true },
-  { id: 'gpt-5.4-mini', owned_by: 'openai', min_tier: 0, pricing: { input: 0.15, cached_input: 0.0375, output: 0.6 }, mode: 'chat', max_tokens: 128000, supports_function_calling: true },
-  { id: 'claude-sonnet-5', owned_by: 'anthropic', min_tier: 0, pricing: { input: 3.0, cached_input: 0.3, output: 15.0 }, mode: 'chat', max_tokens: 200000, supports_function_calling: true, supports_prompt_caching: true },
-  { id: 'claude-opus-5', owned_by: 'anthropic', min_tier: 1, pricing: { input: 15.0, cached_input: 1.5, output: 75.0 }, mode: 'chat', max_tokens: 200000, supports_function_calling: true },
-  { id: 'grok-4.5', owned_by: 'xai', min_tier: 0, pricing: { input: 2.0, cached_input: 0.5, output: 8.0 }, mode: 'chat', max_tokens: 131072, supports_function_calling: true },
+  { id: 'qwen3.8-27b', owned_by: 'alibaba', min_tier: 0, pricing: { input: 0.4, cached_input: 0.1, output: 1.6 }, mode: 'chat', max_tokens: 131072, supports_vision: true, supports_function_calling: true },
+  { id: 'qwen3.8-flash', owned_by: 'alibaba', min_tier: 0, pricing: { input: 0.1, cached_input: 0.02, output: 0.4 }, mode: 'chat', max_tokens: 131072, supports_vision: true, supports_function_calling: true },
+  { id: 'gpt-5.6-luna', owned_by: 'openai', min_tier: 0, pricing: { input: 1.2, cached_input: 0.3, output: 4.8 }, mode: 'chat', max_tokens: 256000, supports_vision: true, supports_pdf_input: true, supports_function_calling: true, supports_web_search: true },
+  { id: 'gpt-5.4-mini', owned_by: 'openai', min_tier: 0, pricing: { input: 0.15, cached_input: 0.0375, output: 0.6 }, mode: 'chat', max_tokens: 128000, supports_vision: true, supports_function_calling: true },
+  { id: 'claude-sonnet-5', owned_by: 'anthropic', min_tier: 0, pricing: { input: 3.0, cached_input: 0.3, output: 15.0 }, mode: 'chat', max_tokens: 200000, supports_vision: true, supports_pdf_input: true, supports_function_calling: true, supports_prompt_caching: true },
+  { id: 'claude-opus-5', owned_by: 'anthropic', min_tier: 1, pricing: { input: 15.0, cached_input: 1.5, output: 75.0 }, mode: 'chat', max_tokens: 200000, supports_vision: true, supports_pdf_input: true, supports_function_calling: true },
+  { id: 'grok-4.5', owned_by: 'xai', min_tier: 0, pricing: { input: 2.0, cached_input: 0.5, output: 8.0 }, mode: 'chat', max_tokens: 131072, supports_vision: true, supports_function_calling: true },
   { id: 'kimi-k3', owned_by: 'moonshot', min_tier: 0, pricing: { input: 1.0, cached_input: 0.2, output: 4.0 }, mode: 'chat', max_tokens: 262144, supports_function_calling: true },
   { id: 'mistral-large-3', owned_by: 'mistralai', min_tier: 0, pricing: { input: 2.0, cached_input: 0.5, output: 6.0 }, mode: 'chat', max_tokens: 128000, supports_function_calling: true },
   { id: 'gpt-image-2', owned_by: 'openai', min_tier: 0, pricing: { input: 0.04, output: 0.08 }, mode: 'image' },
@@ -151,6 +152,11 @@ export const ModelsView = {
         </div>
 
         <div class="model-features-row">
+          ${m.supports_vision ? '<span class="badge badge-primary" title="Vision Multimodal Input">👁️ Vision</span>' : ''}
+          ${m.supports_audio_input ? '<span class="badge badge-cyan" title="Audio / Voice Input">🎙️ Audio In</span>' : ''}
+          ${m.supports_audio_output ? '<span class="badge badge-cyan" title="Spoken Audio Output">🔊 Audio Out</span>' : ''}
+          ${m.supports_pdf_input ? '<span class="badge badge-amber" title="PDF Document Processing">📄 PDF</span>' : ''}
+          ${m.supports_reasoning ? '<span class="badge badge-violet" title="Reasoning Process">🧠 Reasoning</span>' : ''}
           ${m.supports_function_calling ? '<span class="badge badge-cyan" title="Function Calling">🛠️ Tools</span>' : ''}
           ${m.supports_web_search ? '<span class="badge badge-emerald" title="Web Search">🌐 Web Search</span>' : ''}
           ${m.supports_prompt_caching ? '<span class="badge badge-primary" title="Prompt Caching">⚡ Cache</span>' : ''}

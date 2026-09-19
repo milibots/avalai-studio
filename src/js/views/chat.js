@@ -1,8 +1,26 @@
-// Chat Playground View with Live SSE Streaming, Reasoning, SQLite Sessions, and Skeletons
+// Chat Playground View with Live SSE Streaming, Reasoning, Multimedia & Voice, SQLite Sessions
 import { store } from '../store.js';
 import { Database } from '../db.js';
 import { AvalAIApi } from '../api.js';
 import { generateChatCode, generateResponsesCode } from '../utils/code-gen.js';
+
+// Pre-seeded flagship chat models with rich capabilities
+const DEFAULT_CHAT_MODELS = [
+  { id: 'gpt-6-astra', name: 'OpenAI: GPT-6 Astra (Flagship)', supports_vision: true, supports_pdf_input: true, supports_reasoning: true, supports_web_search: true },
+  { id: 'claude-fable-5-1', name: 'Anthropic: Claude Fable 5.1 (1M Context)', supports_vision: true, supports_pdf_input: true, supports_web_search: true },
+  { id: 'gemini-3.8-flash', name: 'Google: Gemini 3.8 Flash (Audio & Vision)', supports_vision: true, supports_audio_input: true, supports_pdf_input: true, supports_web_search: true },
+  { id: 'gpt-audio-mini', name: 'OpenAI: GPT Audio Mini (Spoken Voice)', supports_audio_input: true, supports_audio_output: true },
+  { id: 'gpt-audio', name: 'OpenAI: GPT Audio (Flagship Voice)', supports_audio_input: true, supports_audio_output: true },
+  { id: 'glm-5.3', name: 'Z.AI: GLM-5.3 (Reasoning)', supports_reasoning: true },
+  { id: 'deepseek-v4-pro', name: 'DeepSeek: DeepSeek-V4-Pro (Thinking)', supports_reasoning: true },
+  { id: 'qwen3.8-27b', name: 'Alibaba: Qwen3.8-27B (Vision)', supports_vision: true },
+  { id: 'gpt-5.6-luna', name: 'OpenAI: GPT-5.6 Luna (Vision & Docs)', supports_vision: true, supports_pdf_input: true, supports_web_search: true },
+  { id: 'gpt-5.4-mini', name: 'OpenAI: GPT-5.4 Mini', supports_vision: true },
+  { id: 'claude-sonnet-5', name: 'Anthropic: Claude Sonnet 5', supports_vision: true, supports_pdf_input: true },
+  { id: 'grok-4.5', name: 'xAI: Grok 4.5', supports_vision: true },
+  { id: 'kimi-k3', name: 'Moonshot: Kimi K3 (Long Context)' },
+  { id: 'mistral-large-3', name: 'Mistral: Mistral Large 3' }
+];
 
 export const ChatView = {
   async init(container, showToast) {
@@ -17,10 +35,17 @@ export const ChatView = {
     this.maxTokens = 4096;
     this.systemPrompt = 'You are a helpful, knowledgeable AI assistant.';
     this.webSearchEnabled = false;
-    this.attachedImages = []; // base64 images
+    this.attachedMedia = []; // { type: 'image'|'audio'|'file', data: base64DataUrl, name, mime, size, duration }
     this.isStreaming = false;
     this.isWaitingFirstToken = false;
     this.activeStream = null;
+
+    // Audio recording state
+    this.mediaRecorder = null;
+    this.audioChunks = [];
+    this.recordingTimer = null;
+    this.recordingDurationSec = 0;
+    this.isRecording = false;
 
     // Load sessions from SQLite
     await this.loadSessions();
@@ -29,6 +54,54 @@ export const ChatView = {
     store.subscribe(() => {
       this.updateModelSelector();
     });
+  },
+
+  getModelCapabilities(modelId) {
+    const targetId = modelId || this.selectedModel;
+    const cached = store.getCachedModels() || [];
+    const found = cached.find(m => m.id === targetId) || DEFAULT_CHAT_MODELS.find(m => m.id === targetId);
+
+    if (found) {
+      return {
+        supports_vision: Boolean(found.supports_vision),
+        supports_audio_input: Boolean(found.supports_audio_input),
+        supports_audio_output: Boolean(found.supports_audio_output),
+        supports_pdf_input: Boolean(found.supports_pdf_input),
+        supports_reasoning: Boolean(found.supports_reasoning),
+        supports_web_search: Boolean(found.supports_web_search !== false)
+      };
+    }
+
+    // Heuristics fallback
+    const id = (targetId || '').toLowerCase();
+    return {
+      supports_vision: id.includes('vision') || id.includes('gpt-4o') || id.includes('gpt-5') || id.includes('gpt-6') || id.includes('claude') || id.includes('gemini') || id.includes('qwen') || id.includes('grok'),
+      supports_audio_input: id.includes('audio') || id.includes('gemini-3') || id.includes('gemini-2.5'),
+      supports_audio_output: id.includes('audio') || id.includes('tts'),
+      supports_pdf_input: id.includes('gemini') || id.includes('claude') || id.includes('gpt-6') || id.includes('gpt-5.6'),
+      supports_reasoning: id.includes('reason') || id.includes('deepseek') || id.includes('r1') || id.includes('o1') || id.includes('o3') || id.includes('glm') || id.includes('astra'),
+      supports_web_search: !id.includes('audio') && !id.includes('image')
+    };
+  },
+
+  getAllChatModels() {
+    const cached = store.getCachedModels() || [];
+    const chatModels = cached.filter(m => !m.mode || m.mode === 'chat');
+    
+    // Merge cached with default seed list to ensure zero empty dropdowns
+    const map = new Map();
+    DEFAULT_CHAT_MODELS.forEach(m => map.set(m.id, m));
+    chatModels.forEach(m => {
+      if (!map.has(m.id)) {
+        map.set(m.id, {
+          id: m.id,
+          name: `${m.owned_by ? m.owned_by.toUpperCase() + ': ' : ''}${m.id}`,
+          ...m
+        });
+      }
+    });
+
+    return Array.from(map.values());
   },
 
   async loadSessions() {
@@ -50,7 +123,6 @@ export const ChatView = {
         this.currentSessionId = this.sessions[0].id;
       }
 
-      // Load messages for active session
       if (this.currentSessionId) {
         this.messages = await Database.getSessionMessages(this.currentSessionId);
       }
@@ -86,6 +158,7 @@ export const ChatView = {
     this.sessions.unshift(newSession);
     this.currentSessionId = newSession.id;
     this.messages = [];
+    this.attachedMedia = [];
     this.render();
   },
 
@@ -107,9 +180,39 @@ export const ChatView = {
     this.selectedModel = modelId;
     const sel = this.container.querySelector('#select-chat-model');
     if (sel) sel.value = modelId;
+    this.renderCapabilities();
+  },
+
+  renderCapabilities() {
+    const bar = this.container.querySelector('#chat-capabilities-bar');
+    if (!bar) return;
+    const caps = this.getModelCapabilities(this.selectedModel);
+    bar.innerHTML = `
+      <span class="cap-badge ${caps.supports_vision ? 'active' : 'dimmed'}" title="${caps.supports_vision ? 'Vision Multimodal Input Supported' : 'No Vision'}">
+        👁️ Vision
+      </span>
+      <span class="cap-badge ${caps.supports_audio_input ? 'audio-active' : 'dimmed'}" title="${caps.supports_audio_input ? 'Native Spoken Voice Input Supported' : 'Voice handled via Whisper transcription'}">
+        🎙️ Audio In
+      </span>
+      <span class="cap-badge ${caps.supports_audio_output ? 'audio-active' : 'dimmed'}" title="${caps.supports_audio_output ? 'Direct Spoken Voice Output Supported' : 'Text Output'}">
+        🔊 Audio Out
+      </span>
+      <span class="cap-badge ${caps.supports_pdf_input ? 'active' : 'dimmed'}" title="${caps.supports_pdf_input ? 'PDF Document Processing Supported' : 'Plain Text'}">
+        📄 PDF/Doc
+      </span>
+      <span class="cap-badge ${caps.supports_reasoning ? 'reasoning-active' : 'dimmed'}" title="${caps.supports_reasoning ? 'Thinking/Reasoning Stream' : 'Direct Response'}">
+        🧠 Reasoning
+      </span>
+      <span class="cap-badge ${caps.supports_web_search ? 'active' : 'dimmed'}" title="${caps.supports_web_search ? 'Integrated Real-time Web Search' : 'No Web Search'}">
+        🌐 Web Search
+      </span>
+    `;
   },
 
   render() {
+    const allModels = this.getAllChatModels();
+    const caps = this.getModelCapabilities(this.selectedModel);
+
     this.container.innerHTML = `
       <div class="playground-layout">
         <!-- Sessions Sidebar (SQLite Backed) -->
@@ -131,23 +234,42 @@ export const ChatView = {
         <div class="chat-main">
           <!-- Chat Header -->
           <div class="chat-header">
-            <div class="chat-model-indicator">
-              <select class="form-select" id="select-chat-model" style="font-weight: 700;">
-                <option value="gpt-6-astra">OpenAI: GPT-6 Astra (Flagship)</option>
-                <option value="claude-fable-5-1">Anthropic: Claude Fable 5.1 (1M Context)</option>
-                <option value="gemini-3.8-flash">Google: Gemini 3.8 Flash</option>
-                <option value="glm-5.3">Z.AI: GLM-5.3 (Reasoning)</option>
-                <option value="deepseek-v4-pro">DeepSeek: DeepSeek-V4-Pro</option>
-                <option value="qwen3.8-27b">Alibaba: Qwen3.8-27B</option>
-                <option value="gpt-5.6-luna">OpenAI: GPT-5.6 Luna</option>
-                <option value="grok-4.5">xAI: Grok 4.5</option>
-                <option value="kimi-k3">Moonshot: Kimi K3</option>
-                <option value="mistral-large-3">Mistral: Mistral Large 3</option>
-              </select>
+            <div class="chat-model-indicator" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <select class="form-select" id="select-chat-model" style="font-weight: 700; min-width: 280px;">
+                  ${allModels.map(m => `
+                    <option value="${m.id}" ${m.id === this.selectedModel ? 'selected' : ''}>
+                      ${m.name || m.id}
+                    </option>
+                  `).join('')}
+                </select>
 
-              <div style="display: flex; gap: 4px; background: var(--bg-base); padding: 3px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
-                <button class="btn btn-sm ${this.apiMode === 'chat' ? 'btn-primary' : 'btn-secondary'}" id="btn-mode-chat">/v1/chat</button>
-                <button class="btn btn-sm ${this.apiMode === 'responses' ? 'btn-primary' : 'btn-secondary'}" id="btn-mode-responses">/v1/responses</button>
+                <div style="display: flex; gap: 4px; background: var(--bg-base); padding: 3px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                  <button class="btn btn-sm ${this.apiMode === 'chat' ? 'btn-primary' : 'btn-secondary'}" id="btn-mode-chat">/v1/chat</button>
+                  <button class="btn btn-sm ${this.apiMode === 'responses' ? 'btn-primary' : 'btn-secondary'}" id="btn-mode-responses">/v1/responses</button>
+                </div>
+              </div>
+
+              <!-- Dynamic Model Capabilities Bar -->
+              <div class="chat-capabilities-bar" id="chat-capabilities-bar">
+                <span class="cap-badge ${caps.supports_vision ? 'active' : 'dimmed'}" title="${caps.supports_vision ? 'Vision Multimodal Input Supported' : 'No Vision'}">
+                  👁️ Vision
+                </span>
+                <span class="cap-badge ${caps.supports_audio_input ? 'audio-active' : 'dimmed'}" title="${caps.supports_audio_input ? 'Native Spoken Voice Input Supported' : 'Voice handled via Whisper transcription'}">
+                  🎙️ Audio In
+                </span>
+                <span class="cap-badge ${caps.supports_audio_output ? 'audio-active' : 'dimmed'}" title="${caps.supports_audio_output ? 'Direct Spoken Voice Output Supported' : 'Text Output'}">
+                  🔊 Audio Out
+                </span>
+                <span class="cap-badge ${caps.supports_pdf_input ? 'active' : 'dimmed'}" title="${caps.supports_pdf_input ? 'PDF Document Processing Supported' : 'Plain Text'}">
+                  📄 PDF/Doc
+                </span>
+                <span class="cap-badge ${caps.supports_reasoning ? 'reasoning-active' : 'dimmed'}" title="${caps.supports_reasoning ? 'Thinking/Reasoning Stream' : 'Direct Response'}">
+                  🧠 Reasoning
+                </span>
+                <span class="cap-badge ${caps.supports_web_search ? 'active' : 'dimmed'}" title="${caps.supports_web_search ? 'Integrated Real-time Web Search' : 'No Web Search'}">
+                  🌐 Web Search
+                </span>
               </div>
             </div>
 
@@ -167,8 +289,8 @@ export const ChatView = {
               <div class="chat-welcome">
                 <div class="chat-welcome-icon">💬</div>
                 <h3 style="font-size: 18px; font-weight: 700;">AvalAI Playground</h3>
-                <p style="max-width: 480px; font-size: 13px;">
-                  Test any AvalAI model with real-time token streaming, thinking/reasoning token inspection, image attachments, and tool calling.
+                <p style="max-width: 520px; font-size: 13px; line-height: 1.6;">
+                  Test any AvalAI model with real-time SSE streaming, voice recording & Whisper transcription, native spoken audio responses, multimodal vision attachments, and thinking tokens.
                 </p>
               </div>
             ` : this.renderMessages()}
@@ -186,14 +308,22 @@ export const ChatView = {
             ` : ''}
           </div>
 
-          <!-- Chat Input Area -->
+          <!-- Chat Input Area with Rich Attachments -->
           <div class="chat-input-area">
-            ${this.attachedImages.length > 0 ? `
+            ${this.attachedMedia.length > 0 ? `
               <div class="input-attachments-preview">
-                ${this.attachedImages.map((img, idx) => `
+                ${this.attachedMedia.map((m, idx) => `
                   <div class="attachment-chip">
-                    <span>🖼️ Image ${idx + 1}</span>
-                    <span class="attachment-chip-remove" data-idx="${idx}">&times;</span>
+                    ${m.type === 'image' ? `
+                      <img src="${m.data}" class="attachment-chip-thumb" />
+                      <span>${m.name || 'Image'}</span>
+                    ` : m.type === 'audio' ? `
+                      <span class="attachment-chip-audio">🎙️ ${m.name || 'Voice Note'}</span>
+                      <audio src="${m.data}" controls style="height: 24px; max-width: 140px;"></audio>
+                    ` : `
+                      <span>📄 ${m.name || 'Document'}</span>
+                    `}
+                    <span class="attachment-chip-remove" data-idx="${idx}" title="Remove attachment">&times;</span>
                   </div>
                 `).join('')}
               </div>
@@ -201,11 +331,26 @@ export const ChatView = {
 
             <div class="chat-input-controls">
               <textarea class="chat-textarea" id="chat-prompt-input" placeholder="Type your prompt... (Press Enter to send, Shift+Enter for newline)" rows="1"></textarea>
+              
               <div class="chat-action-buttons">
-                <input type="file" id="input-chat-file" accept="image/*" style="display: none;" />
+                <!-- Hidden inputs -->
+                <input type="file" id="input-chat-image" accept="image/*" style="display: none;" />
+                <input type="file" id="input-chat-file" accept=".pdf,.txt,.md,.json,.csv,audio/*" style="display: none;" />
+
+                <!-- Attachment triggers -->
                 <button class="btn btn-secondary btn-sm btn-icon-only" id="btn-attach-image" title="Attach Vision Image">
                   🖼️
                 </button>
+                <button class="btn btn-secondary btn-sm btn-icon-only" id="btn-attach-file" title="Attach Document (PDF, TXT, Audio)">
+                  📎
+                </button>
+
+                <!-- Voice Recording Button -->
+                <button class="btn btn-secondary btn-sm" id="btn-chat-speak" title="Speak to Model (Voice Recording & Whisper Transcription)">
+                  🎙️ Speak
+                </button>
+
+                <!-- Send Button -->
                 <button class="btn btn-primary btn-sm" id="btn-chat-send" style="padding: 8px 16px;">
                   Send 🚀
                 </button>
@@ -252,9 +397,10 @@ export const ChatView = {
           </div>
 
           <div class="card" style="padding: 14px; margin-top: auto; font-size: 11px; color: var(--text-muted);">
-            <div style="font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">SQLite Persistence</div>
+            <div style="font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">SQLite Persistence & Multimedia</div>
             <div>Chat Saved in: <strong>avalai_vault.sqlite</strong></div>
             <div style="margin-top: 4px;">Protocol: <strong>${this.apiMode === 'chat' ? '/v1/chat/completions' : '/v1/responses'}</strong></div>
+            <div style="margin-top: 4px;">Audio Engine: <strong>Whisper-1 & GPT-Audio</strong></div>
           </div>
         </div>
       </div>
@@ -289,18 +435,44 @@ export const ChatView = {
   renderMessages() {
     return this.messages.map(m => {
       const isUser = m.role === 'user';
+      const mediaList = m.media || m.images || [];
+
       return `
         <div class="message-row ${isUser ? 'user' : 'assistant'}">
           <div class="message-avatar">
             ${isUser ? '👤' : '⚡'}
           </div>
           <div class="message-content-wrapper">
-            ${m.images && m.images.length > 0 ? `
+            <!-- Render User Media Attachments -->
+            ${mediaList.length > 0 ? `
               <div class="message-images">
-                ${m.images.map(img => `<img src="${img}" class="message-img-preview" />`).join('')}
+                ${mediaList.map(item => {
+                  if (typeof item === 'string') {
+                    return `<img src="${item}" class="message-img-preview" />`;
+                  } else if (item.type === 'image') {
+                    return `<img src="${item.data}" class="message-img-preview" />`;
+                  } else if (item.type === 'audio') {
+                    return `
+                      <div class="message-audio-player">
+                        <div style="font-size: 11px; font-weight: 600; color: var(--accent-cyan); margin-bottom: 2px;">
+                          🎙️ ${item.name || 'User Voice Note'}
+                        </div>
+                        <audio controls src="${item.data}"></audio>
+                      </div>
+                    `;
+                  } else if (item.type === 'file') {
+                    return `
+                      <div class="attachment-chip">
+                        <span>📄 ${item.name || 'Document'}</span>
+                      </div>
+                    `;
+                  }
+                  return '';
+                }).join('')}
               </div>
             ` : ''}
 
+            <!-- Reasoning / Thinking Process Collapsible -->
             ${m.thinking ? `
               <div class="thinking-box">
                 <div class="thinking-header" onclick="this.parentElement.classList.toggle('collapsed')">
@@ -311,6 +483,16 @@ export const ChatView = {
                   <span>▾</span>
                 </div>
                 <div class="thinking-content">${this.escapeHtml(m.thinking)}</div>
+              </div>
+            ` : ''}
+
+            <!-- Spoken Audio Response from Assistant -->
+            ${m.audio ? `
+              <div class="message-audio-player">
+                <div style="font-size: 11px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                  <span>🔊 Spoken Voice Response (${m.audio.voice || 'alloy'})</span>
+                </div>
+                <audio controls autoplay src="${m.audio.data?.startsWith('data:') ? m.audio.data : 'data:audio/wav;base64,' + m.audio.data}"></audio>
               </div>
             ` : ''}
 
@@ -369,6 +551,7 @@ export const ChatView = {
     const sel = this.container.querySelector('#select-chat-model');
     if (sel && this.selectedModel) {
       sel.value = this.selectedModel;
+      this.renderCapabilities();
     }
   },
 
@@ -400,6 +583,7 @@ export const ChatView = {
     const modelSelect = this.container.querySelector('#select-chat-model');
     modelSelect?.addEventListener('change', (e) => {
       this.selectedModel = e.target.value;
+      this.renderCapabilities();
       if (this.currentSessionId) {
         Database.updateChatSession(this.currentSessionId, { model: this.selectedModel });
       }
@@ -472,28 +656,41 @@ export const ChatView = {
       }
     });
 
-    // Image Attachment
-    const fileInput = this.container.querySelector('#input-chat-file');
-    const attachBtn = this.container.querySelector('#btn-attach-image');
+    // Image Attachment Trigger
+    const imgInput = this.container.querySelector('#input-chat-image');
+    const attachImgBtn = this.container.querySelector('#btn-attach-image');
+    attachImgBtn?.addEventListener('click', () => imgInput?.click());
+    imgInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) this.processFile(file, 'image');
+    });
 
-    attachBtn?.addEventListener('click', () => fileInput?.click());
+    // Document & File Attachment Trigger
+    const fileInput = this.container.querySelector('#input-chat-file');
+    const attachFileBtn = this.container.querySelector('#btn-attach-file');
+    attachFileBtn?.addEventListener('click', () => fileInput?.click());
     fileInput?.addEventListener('change', (e) => {
       const file = e.target.files?.[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (re) => {
-          this.attachedImages.push(re.target.result);
-          this.render();
-        };
-        reader.readAsDataURL(file);
+        if (file.type.startsWith('image/')) {
+          this.processFile(file, 'image');
+        } else if (file.type.startsWith('audio/')) {
+          this.processFile(file, 'audio');
+        } else {
+          this.processFile(file, 'file');
+        }
       }
     });
+
+    // Microphone Voice Recording Button
+    const speakBtn = this.container.querySelector('#btn-chat-speak');
+    speakBtn?.addEventListener('click', () => this.toggleVoiceRecording());
 
     // Remove Attachment Chip
     this.container.querySelectorAll('.attachment-chip-remove').forEach(chip => {
       chip.addEventListener('click', () => {
         const idx = parseInt(chip.getAttribute('data-idx'), 10);
-        this.attachedImages.splice(idx, 1);
+        this.attachedMedia.splice(idx, 1);
         this.render();
       });
     });
@@ -511,6 +708,145 @@ export const ChatView = {
     this.setupCodeModal();
   },
 
+  async toggleVoiceRecording() {
+    if (this.isRecording) {
+      this.stopVoiceRecording();
+    } else {
+      await this.startVoiceRecording();
+    }
+  },
+
+  async startVoiceRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.audioChunks = [];
+      
+      const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? { mimeType: 'audio/webm;codecs=opus' }
+        : MediaRecorder.isTypeSupported('audio/webm')
+        ? { mimeType: 'audio/webm' }
+        : {};
+
+      this.mediaRecorder = new MediaRecorder(stream, options);
+
+      this.mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          this.audioChunks.push(e.data);
+        }
+      };
+
+      this.mediaRecorder.onstop = async () => {
+        clearInterval(this.recordingTimer);
+        this.isRecording = false;
+        const mimeType = this.mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(this.audioChunks, { type: mimeType });
+        stream.getTracks().forEach(t => t.stop());
+
+        await this.handleRecordedAudio(audioBlob, mimeType, this.recordingDurationSec);
+      };
+
+      this.mediaRecorder.start(250);
+      this.isRecording = true;
+      this.recordingDurationSec = 0;
+
+      const speakBtn = this.container.querySelector('#btn-chat-speak');
+      if (speakBtn) {
+        speakBtn.classList.add('btn-recording');
+        speakBtn.innerHTML = `⏹️ 00:00`;
+      }
+
+      this.recordingTimer = setInterval(() => {
+        this.recordingDurationSec++;
+        const mins = String(Math.floor(this.recordingDurationSec / 60)).padStart(2, '0');
+        const secs = String(this.recordingDurationSec % 60).padStart(2, '0');
+        if (speakBtn) {
+          speakBtn.innerHTML = `⏹️ ${mins}:${secs}`;
+        }
+      }, 1000);
+
+      this.showToast('🎙️ Recording voice... Speak clearly. Click again when done.', 'info');
+    } catch (err) {
+      console.error('Microphone recording error:', err);
+      this.showToast('Microphone access unavailable: ' + err.message, 'error');
+    }
+  },
+
+  stopVoiceRecording() {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.stop();
+    }
+    clearInterval(this.recordingTimer);
+    this.isRecording = false;
+
+    const speakBtn = this.container.querySelector('#btn-chat-speak');
+    if (speakBtn) {
+      speakBtn.classList.remove('btn-recording');
+      speakBtn.innerHTML = `🎙️ Speak`;
+    }
+  },
+
+  async handleRecordedAudio(blob, mimeType, durationSec) {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64DataUrl = reader.result;
+      const mins = Math.floor(durationSec / 60);
+      const secs = String(durationSec % 60).padStart(2, '0');
+      const durStr = `${mins}:${secs}`;
+
+      // Attach audio chip to input
+      this.attachedMedia.push({
+        type: 'audio',
+        data: base64DataUrl,
+        name: `Voice Note (${durStr})`,
+        mime: mimeType,
+        duration: durStr
+      });
+      this.render();
+
+      // Automatically transcribe with Whisper-1 to also fill the prompt text
+      const activeKey = store.getActiveKey();
+      if (activeKey) {
+        this.showToast('⚡ Transcribing voice with Whisper-1...', 'info');
+        try {
+          const transRes = await AvalAIApi.transcribeAudio({
+            apiKey: activeKey.key,
+            model: 'whisper-1',
+            fileBase64: base64DataUrl,
+            filename: 'recording.wav',
+            mime: 'audio/wav'
+          });
+
+          if (transRes.success && transRes.data?.text) {
+            const textarea = this.container.querySelector('#chat-prompt-input');
+            if (textarea) {
+              const current = textarea.value.trim();
+              textarea.value = current ? `${current} ${transRes.data.text}` : transRes.data.text;
+            }
+            this.showToast(`✅ Transcribed: "${transRes.data.text.slice(0, 45)}..."`, 'success');
+          }
+        } catch (err) {
+          console.warn('Whisper auto-transcription warning:', err);
+        }
+      }
+    };
+    reader.readAsDataURL(blob);
+  },
+
+  processFile(file, type) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this.attachedMedia.push({
+        type,
+        data: e.target.result,
+        name: file.name,
+        mime: file.type,
+        size: Math.round(file.size / 1024) + ' KB'
+      });
+      this.render();
+    };
+    reader.readAsDataURL(file);
+  },
+
   setupCodeModal() {
     const modal = this.container.querySelector('#modal-code-snippet');
     const openBtn = this.container.querySelector('#btn-export-code');
@@ -522,7 +858,7 @@ export const ChatView = {
 
     const updateSnippet = () => {
       const activeKey = store.getActiveKey()?.key || 'YOUR_AVALAI_KEY';
-      const promptMessages = this.buildChatMessages("Sample prompt");
+      const promptMessages = this.buildChatMessages();
 
       let snippets;
       if (this.apiMode === 'responses') {
@@ -535,7 +871,7 @@ export const ChatView = {
       } else {
         snippets = generateChatCode({
           model: this.selectedModel,
-          messages: promptMessages,
+          messages: promptMessages.length ? promptMessages : [{ role: 'user', content: 'Hello!' }],
           temperature: this.temperature,
           maxTokens: this.maxTokens,
           stream: true,
@@ -578,21 +914,44 @@ export const ChatView = {
     });
   },
 
-  buildChatMessages(latestPrompt) {
+  buildChatMessages() {
     const formatted = [];
     if (this.systemPrompt) {
       formatted.push({ role: 'system', content: this.systemPrompt });
     }
 
     for (const m of this.messages) {
-      if (m.images && m.images.length > 0) {
-        const contentParts = [{ type: 'text', text: m.content }];
-        m.images.forEach(img => {
-          contentParts.push({ type: 'image_url', image_url: { url: img } });
-        });
+      const mediaList = m.media || m.images || [];
+      if (mediaList.length > 0) {
+        const contentParts = [];
+        if (m.content) {
+          contentParts.push({ type: 'text', text: m.content });
+        }
+
+        for (const item of mediaList) {
+          if (typeof item === 'string') {
+            contentParts.push({ type: 'image_url', image_url: { url: item } });
+          } else if (item.type === 'image') {
+            contentParts.push({ type: 'image_url', image_url: { url: item.data } });
+          } else if (item.type === 'audio') {
+            const cleanB64 = (item.data || '').replace(/^data:[^;]+;base64,/, '');
+            contentParts.push({
+              type: 'input_audio',
+              input_audio: {
+                data: cleanB64,
+                format: 'wav'
+              }
+            });
+          } else if (item.type === 'file') {
+            contentParts.push({
+              type: 'image_url',
+              image_url: { url: item.data }
+            });
+          }
+        }
         formatted.push({ role: m.role, content: contentParts });
       } else {
-        formatted.push({ role: m.role, content: m.content });
+        formatted.push({ role: m.role, content: m.content || '' });
       }
     }
     return formatted;
@@ -601,7 +960,7 @@ export const ChatView = {
   async sendMessage() {
     const textarea = this.container.querySelector('#chat-prompt-input');
     const prompt = textarea?.value.trim();
-    if (!prompt && this.attachedImages.length === 0) return;
+    if (!prompt && this.attachedMedia.length === 0) return;
 
     const activeKey = store.getActiveKey();
     if (!activeKey) {
@@ -609,13 +968,16 @@ export const ChatView = {
       return;
     }
 
+    const caps = this.getModelCapabilities(this.selectedModel);
+
     // Add user message
     const userMsg = {
       id: 'msg_' + Date.now(),
       session_id: this.currentSessionId,
       role: 'user',
       content: prompt,
-      images: [...this.attachedImages]
+      media: [...this.attachedMedia],
+      images: [...this.attachedMedia] // backward compatible with SQLite column
     };
     this.messages.push(userMsg);
     await Database.addChatMessage(userMsg);
@@ -628,7 +990,7 @@ export const ChatView = {
       if (current) current.title = shortTitle;
     }
 
-    this.attachedImages = [];
+    this.attachedMedia = [];
     if (textarea) textarea.value = '';
 
     // Create placeholder assistant message
@@ -638,6 +1000,7 @@ export const ChatView = {
       role: 'assistant',
       content: '',
       thinking: '',
+      audio: null,
       meta: null
     };
     this.messages.push(assistantMsg);
@@ -679,13 +1042,14 @@ export const ChatView = {
       this.scrollToBottom();
     } else {
       const formattedMessages = this.buildChatMessages();
-      formattedMessages.pop(); // remove empty assistant message
+      formattedMessages.pop(); // remove empty assistant placeholder
 
       this.isStreaming = true;
       let lastRequestId = null;
       let lastProcessingMs = null;
+      let accumulatedAudioBase64 = '';
 
-      this.activeStream = AvalAIApi.streamChatCompletion({
+      const streamOptions = {
         apiKey: activeKey.key,
         model: this.selectedModel,
         messages: formattedMessages,
@@ -712,12 +1076,27 @@ export const ChatView = {
             if (delta.content) {
               assistantMsg.content += delta.content;
             }
+            if (delta.audio?.data) {
+              accumulatedAudioBase64 += delta.audio.data;
+            }
+            if (delta.audio?.transcript) {
+              if (!assistantMsg.content) assistantMsg.content += delta.audio.transcript;
+            }
             this.updateLiveAssistantBubble(assistantMsg);
           }
         },
         onEnd: async () => {
           this.isStreaming = false;
           this.isWaitingFirstToken = false;
+          
+          if (accumulatedAudioBase64) {
+            assistantMsg.audio = {
+              data: accumulatedAudioBase64,
+              format: 'wav',
+              voice: 'alloy'
+            };
+          }
+
           assistantMsg.meta = {
             latencyMs: Date.now() - startTime,
             serverMs: lastProcessingMs,
@@ -735,7 +1114,15 @@ export const ChatView = {
           this.render();
           this.scrollToBottom();
         }
-      });
+      };
+
+      // Enable spoken audio output if model supports it
+      if (caps.supports_audio_output) {
+        streamOptions.modalities = ['text', 'audio'];
+        streamOptions.audio = { voice: 'alloy', format: 'wav' };
+      }
+
+      this.activeStream = AvalAIApi.streamChatCompletion(streamOptions);
     }
   },
 

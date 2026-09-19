@@ -67,7 +67,7 @@ export const AvalAIApi = {
   },
 
   // --- CHAT & STREAMING ---
-  async chatCompletion({ apiKey, model, messages, temperature = 0.7, max_tokens = 2048, stream = false, tools, web_search = false }) {
+  async chatCompletion({ apiKey, model, messages, temperature = 0.7, max_tokens = 2048, stream = false, tools, web_search = false, modalities, audio }) {
     const url = `${DEFAULT_BASE_URL}/v1/chat/completions`;
     const headers = {
       ...getAuthHeader(apiKey),
@@ -82,6 +82,9 @@ export const AvalAIApi = {
       stream: Boolean(stream)
     };
 
+    if (modalities) body.modalities = modalities;
+    if (audio) body.audio = audio;
+
     if (web_search) {
       body.tools = [{ type: 'web_search' }];
     } else if (tools && tools.length) {
@@ -92,7 +95,7 @@ export const AvalAIApi = {
   },
 
   // Native SSE Streaming Chat
-  streamChatCompletion({ apiKey, model, messages, temperature = 0.7, max_tokens = 2048, web_search = false, onHeaders, onChunk, onEvent, onEnd, onError }) {
+  streamChatCompletion({ apiKey, model, messages, temperature = 0.7, max_tokens = 2048, web_search = false, modalities, audio, onHeaders, onChunk, onEvent, onEnd, onError }) {
     const streamId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const url = `${DEFAULT_BASE_URL}/v1/chat/completions`;
     const headers = getAuthHeader(apiKey);
@@ -103,6 +106,9 @@ export const AvalAIApi = {
       temperature: Number(temperature),
       max_tokens: Number(max_tokens)
     };
+
+    if (modalities) body.modalities = modalities;
+    if (audio) body.audio = audio;
 
     if (web_search) {
       body.tools = [{ type: 'web_search' }];
@@ -188,6 +194,32 @@ export const AvalAIApi = {
       speed: Number(speed)
     };
     if (instructions) body.instructions = instructions;
+
+    return window.avalai.request({ url, method: 'POST', headers, body, timeout: 60000 });
+  },
+
+  // --- AUDIO / TRANSCRIPTIONS API ---
+  async transcribeAudio({ apiKey, model = 'whisper-1', fileBase64, filename = 'voice.wav', mime = 'audio/wav', language, prompt }) {
+    const url = `${DEFAULT_BASE_URL}/v1/audio/transcriptions`;
+    const headers = getAuthHeader(apiKey);
+
+    const fields = {
+      model,
+      response_format: 'json'
+    };
+    if (language) fields.language = language;
+    if (prompt) fields.prompt = prompt;
+
+    const body = {
+      isMultipart: true,
+      fields,
+      file: {
+        base64: fileBase64,
+        filename,
+        mime,
+        fieldName: 'file'
+      }
+    };
 
     return window.avalai.request({ url, method: 'POST', headers, body, timeout: 60000 });
   },
