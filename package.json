@@ -1,0 +1,55 @@
+{
+  "name": "avalai-api-manager",
+  "version": "1.0.0",
+  "description": "AvalAI Complete Desktop API Manager & Studio",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "ir.avalai.studio",
+    "productName": "AvalAI Studio",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "src/assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AvalAI Studio"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "node_modules/**/*"
+    ]
+  },
+  "keywords": [
+    "avalai",
+    "api-manager",
+    "ai-studio",
+    "electron"
+  ],
+  "author": "AvalAI Developer",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "sql.js": "^1.14.2"
+  }
+}

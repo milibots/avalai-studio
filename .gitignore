@@ -1,0 +1,12 @@
+﻿node_modules/
+dist/
+build/
+*.sqlite
+*.sqlite3
+*.db
+*.log
+cookies.txt
+scratch/
+.env
+.DS_Store
+Thumbs.db
